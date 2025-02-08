@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -26,8 +27,9 @@ func HandleConnection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	player := &core.Player{Conn: conn, Money: 999, Name: r.RemoteAddr}
-	
-	core.AddPlayer(player)
+	if !handlePossibleReconnection(player) {
+		core.AddPlayer(player)
+	}
 	fmt.Println("New player connected:", player.Name)
 	
 	go handlePlayerMessages(player);
@@ -59,7 +61,7 @@ func handlePlayerMessages(player *core.Player) {
 		// Since we have a valid message, process it based on the command
 		switch message.Command {
 			case "leave_queue":
-				handleLeaveQueue(player, message)
+				handleLeaveQueue(player)
 
 			case "join_queue":
 				handleJoinQueue(player, message)
@@ -74,7 +76,7 @@ func handlePlayerMessages(player *core.Player) {
 	}
 }
 
-func handleLeaveQueue(player *core.Player, message *message.Message) {
+func handleLeaveQueue(player *core.Player) {
 	core.RemoveFromQueue(player);
 	player.Conn.WriteMessage(websocket.TextMessage, []byte("You left the Queue!..."))
 }
@@ -136,17 +138,69 @@ func handleMovePiece(player *core.Player, message *message.Message) {
 	player.Conn.WriteMessage(websocket.TextMessage, []byte("You are not in a Game!..."))
 }
 
+// Also monitors for a disconnect
 func HandleDisconnection(player *core.Player, opponent *core.Player) {
-	// So when a player disconnects he can be:
-	// - In a Queue, and not in a room.
-	// - In a Room, and not in a Queue.
-	// This means, we will need to handle it diferently.
+	// The player identity should be checked and preserved for reconnection.
+	reconnected := make(chan bool, 1) // Make the channel buffered to prevent blocking.
 
-	if player.Room == nil{
-		core.RemoveFromQueue(player)	// We remove it from the Queue, it might now always be there tho. Dont think its an issue.
-	} else {
-		opponent.Conn.WriteMessage(websocket.TextMessage, []byte("Opponent disconnected."))		
-		core.RemoveRoom(player.Room); 	// If there is a room, we need to remove it.
+	// Start the goroutine to monitor the reconnection.
+	go waitForReconnection(player, reconnected)
+
+	// Wait for either reconnection or timeout (20 seconds).
+	select {
+	case <-reconnected:
+		// Player reconnected successfully, nothing more to do.
+		fmt.Println("Player reconnected successfully.")
+		return
+
+	case <-time.After(20 * time.Second):
+		// Timeout reached, player did not reconnect.
+		// Shut down the room if no reconnection.
+		if player.Room == nil {
+			core.RemoveFromQueue(player) // Remove from queue if not in room.
+		} else {
+			opponent.Conn.WriteMessage(websocket.TextMessage, []byte("Opponent disconnected."))
+			core.RemoveRoom(player.Room) // Remove the room.
+		}
+		core.RemovePlayer(player) // Remove player from the system.
 	}
-	core.RemovePlayer(player)			// Either way, we need to remove the player from the room.
+}
+
+
+// Wait for the player to reconnect, checking every 5 seconds.
+func waitForReconnection(player *core.Player, reconnected chan bool) {
+	// Check every 5 seconds if the player has reconnected.
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			// Check if the player has reconnected.
+			if player.Conn != nil && player.Room != nil {
+				// Successfully reconnected, notify and resume game.
+				player.Conn.WriteMessage(websocket.TextMessage, []byte("Reconnected successfully!"))
+				reconnected <- true // Send signal that player has reconnected.
+				return
+			}
+		}
+	}
+}
+
+
+// On player reconnect, identify the player based on their name and restore state. Returns true if it was a reconnect.
+func handlePossibleReconnection(player *core.Player) (bool) {
+	existingPlayer := core.FindPlayerByName(player.Name)
+	if existingPlayer == nil {
+		return false
+	} 
+	// Player found, restore their previous state (queue or room)
+	if existingPlayer.Room != nil {
+		// Rejoin the same room
+		player.Room = existingPlayer.Room
+		// TODO: I need to assgin this player to the right room in the right order...
+		player.Conn.WriteMessage(websocket.TextMessage, []byte("Reconnected to the same room!"))
+		return true
+	}
+	return false
 }

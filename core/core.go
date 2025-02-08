@@ -111,6 +111,15 @@ func IsPlayerInGame(player *Player) bool {
     return false
 }
 
+func FindPlayerByName(playerName string) *Player {
+	for _, p := range ConnectedPlayers {
+		if p.Name == playerName { // Match based on player name
+			return p
+		}
+	}
+	return nil // Return nil if no player is found
+}
+
 func RemoveFromQueue(player *Player) {
 	Mutex.Lock()
 	defer Mutex.Unlock()
