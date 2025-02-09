@@ -7,14 +7,22 @@ import (
 	"strconv"
 )
 
-func (rc *RedisClient) AddToQueue(ctx context.Context, player *core.Player) error {
+func (rc *RedisClient) AddToQueue(player *core.Player) error {
 	key := "queue:" + strconv.FormatFloat(player.SelectedBid, 'f', 2, 64)
-	return rc.Client.RPush(ctx, key, player.Id).Err()
+	err := rc.Client.RPush(context.Background(), key, player.Id).Err()
+	if err != nil {
+		return fmt.Errorf("[Redis.Queue] - failed to add to queue: %w", err)
+	}
+	return nil
 }
 
-func (rc *RedisClient) RemoveFromQueue(ctx context.Context, player *core.Player) error {
+func (rc *RedisClient) RemoveFromQueue(player *core.Player) error {
 	key := "queue:" + strconv.FormatFloat(player.SelectedBid, 'f', 2, 64)
-	return rc.Client.LRem(ctx, key, 0, player.Id).Err()
+	err := rc.Client.LRem(context.Background(), key, 0, player.Id).Err()
+	if err != nil {
+		return fmt.Errorf("[Redis.Queue] - failed to remove player from queue: %w", err)
+	}
+	return nil
 }
 
 func (rc *RedisClient) GetQueueSizeOf(ctx context.Context, bid float64) (int, error) {

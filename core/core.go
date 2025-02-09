@@ -37,7 +37,6 @@ var WaitingQueue []*Player		// Those waiting for a game.
 var Rooms []*Room				// Rooms of ongoing games 
 
 
-// * This is cooool
 func (r *Room) GetOpponent(player *Player) (*Player){
 	// Just in case there is no room 
 	if r == nil{
@@ -115,6 +114,7 @@ func FindPlayerByName(playerName string) *Player {
 	return nil // Return nil if no player is found
 }
 
+// ? I think this is done.
 func RemoveFromQueue(player *Player) {
 	Mutex.Lock()
 	defer Mutex.Unlock()

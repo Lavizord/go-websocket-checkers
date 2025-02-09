@@ -92,6 +92,7 @@ func handlePlayerMessages(player *core.Player, r *http.Request) {
 }
 
 func handleLeaveQueue(player *core.Player) {
+	checkersDb.RemoveFromQueue(player);
 	core.RemoveFromQueue(player);
 	player.Conn.WriteMessage(websocket.TextMessage, []byte("You left the Queue!..."))
 }
@@ -109,7 +110,7 @@ func handleJoinQueue(player *core.Player, message *message.Message, r *http.Requ
 	} 
 
 	player.SelectedBid = selectedBid
-	checkersDb.AddToQueue(r.Context(), player)
+	checkersDb.AddToQueue(player)
 	core.AddToQueue(player)
 
 	// not enough players to check for a match.
@@ -135,7 +136,9 @@ func handleJoinQueue(player *core.Player, message *message.Message, r *http.Requ
 func handleRoomCreation(filteredQueue []*core.Player) {
 	// Created room withh the first two players of the queue.
 	room := core.CreateRoom(filteredQueue[0], filteredQueue[1]);
-	// remove them from the Queue (!)
+	// remove them from the Queue (!) TODO: Remove old method.
+	checkersDb.RemoveFromQueue(room.Player1);
+	checkersDb.RemoveFromQueue(room.Player2);
 	core.RemoveFromQueue(room.Player1);
 	core.RemoveFromQueue(room.Player2);
 	room.Player1.Conn.WriteMessage(websocket.TextMessage, []byte(message.GeneratePairedMessage(room.Player1, room.Player2, 1)))
