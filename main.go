@@ -4,6 +4,7 @@ import (
 	"checkers-server/broadcast"
 	"checkers-server/core"
 	"checkers-server/handlers"
+	"checkers-server/redisdb"
 	"fmt"
 	"net/http"
 	"os"
@@ -30,12 +31,14 @@ func clearConsole() {
 }
 
 func monitorGameRooms() {
+	var checkersDb = redisdb.NewRedisClient("localhost:6379", "", 0)
 	for {
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 		clearConsole()
 		
-		onlinePlayers := len(core.ConnectedPlayers)
-		queuePlayers := len(core.WaitingQueue)
+		//onlinePlayers := len(core.ConnectedPlayers)
+		onlinePlayers := checkersDb.CountPlayers()
+		queuePlayers, _ := checkersDb.GetTotalQueuedPlayers()
 		activeRooms := len(core.Rooms)
 		
 		// Count stuff to print it grouped later.
@@ -63,6 +66,7 @@ func monitorGameRooms() {
 
 
 func main() {
+	
 	go monitorGameRooms()
 	go broadcast.PlayersInQueue()
 	http.HandleFunc("/ws", handlers.HandleConnection)

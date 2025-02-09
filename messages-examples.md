@@ -105,7 +105,7 @@ So that the client knows how many players are in queue.
 
 # Relay Messages
 
-These ones are sent from one cliente to the server and then to other clientes.
+These ones are sent from one client to the server and then to other clientes.
 
 ### Example 1: Piece movement
 

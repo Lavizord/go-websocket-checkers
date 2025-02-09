@@ -23,6 +23,7 @@ type Room struct {
 // Player represents a single player in the game.
 // The selected bid only need to be passed to the server when the player looks for a match.
 type Player struct {
+	Id int
 	Name string
 	Money float64
 	Conn *websocket.Conn
@@ -35,12 +36,6 @@ var ConnectedPlayers []*Player 	// All players connected.
 var WaitingQueue []*Player		// Those waiting for a game.
 var Rooms []*Room				// Rooms of ongoing games 
 
-func AddPlayer(player *Player) {
-	Mutex.Lock()
-	defer Mutex.Unlock()
-
-	ConnectedPlayers = append(ConnectedPlayers, player)
-}
 
 // * This is cooool
 func (r *Room) GetOpponent(player *Player) (*Player){

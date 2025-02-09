@@ -3,9 +3,11 @@ package handlers
 import (
 	"checkers-server/core"
 	"checkers-server/message"
+	"checkers-server/redisdb"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -18,26 +20,39 @@ var Upgrader = websocket.Upgrader{
 
 var Mutex sync.Mutex
 
+var checkersDb = redisdb.NewRedisClient("localhost:6379", "", 0)
+
 // This should handle our initial connection. Then handlePlayerMessages() should do most of the work.
 func HandleConnection(w http.ResponseWriter, r *http.Request) {
+	// Get playerID from query params
+	playerId := r.URL.Query().Get("playerId")
+	if playerId == "" {
+		fmt.Println("[CLI] Missing playerId on connection.")
+		http.Error(w, "Missing playerId", http.StatusBadRequest)
+		return
+	}
+	playerIdInt, err := strconv.Atoi(playerId)
+	if err != nil {
+		fmt.Println("[CLI] Invalid playerId:", playerId)
+		http.Error(w, "Invalid playerId", http.StatusBadRequest)
+		return
+	}
 	conn, err := Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		fmt.Println("WebSocket upgrade failed:", err)
 		return
 	}
-
-	player := &core.Player{Conn: conn, Money: 999, Name: r.RemoteAddr}
-	if !handlePossibleReconnection(player) {
-		core.AddPlayer(player)
-	}
-	fmt.Println("New player connected:", player.Name)
 	
-	go handlePlayerMessages(player);
+	player := &core.Player{Id: playerIdInt, Conn: conn, Money: 999, Name: r.RemoteAddr}
+	//if !handlePossibleReconnection(player) {
+		checkersDb.AddPlayer(r.Context(), player)
+	//}
+	fmt.Println("New player connected:", player.Id)
+	go handlePlayerMessages(player, r);
 }
 
 
-func handlePlayerMessages(player *core.Player) {
-	// TODO: does this need to be sent to the player? Where do we get these values?
+func handlePlayerMessages(player *core.Player, r *http.Request) {
 	conn := player.Conn
 	jsonMessage, err := message.GenerateConnectedMessage(player)
 	if err != nil {
@@ -64,7 +79,7 @@ func handlePlayerMessages(player *core.Player) {
 				handleLeaveQueue(player)
 
 			case "join_queue":
-				handleJoinQueue(player, message)
+				handleJoinQueue(player, message, r)
 
 			case "move_piece":
 				handleMovePiece(player, message)
@@ -81,7 +96,7 @@ func handleLeaveQueue(player *core.Player) {
 	player.Conn.WriteMessage(websocket.TextMessage, []byte("You left the Queue!..."))
 }
 
-func handleJoinQueue(player *core.Player, message *message.Message) {
+func handleJoinQueue(player *core.Player, message *message.Message, r *http.Request) {
 	var selectedBid float64
 	if err := json.Unmarshal(message.Value, &selectedBid); err != nil {
 		player.Conn.WriteMessage(websocket.TextMessage, []byte("Invalid bid value."))
@@ -94,6 +109,7 @@ func handleJoinQueue(player *core.Player, message *message.Message) {
 	} 
 
 	player.SelectedBid = selectedBid
+	checkersDb.AddToQueue(r.Context(), player)
 	core.AddToQueue(player)
 
 	// not enough players to check for a match.
@@ -141,19 +157,19 @@ func handleMovePiece(player *core.Player, message *message.Message) {
 // Also monitors for a disconnect
 func HandleDisconnection(player *core.Player, opponent *core.Player) {
 	// The player identity should be checked and preserved for reconnection.
-	reconnected := make(chan bool, 1) // Make the channel buffered to prevent blocking.
+	//reconnected := make(chan bool, 1) // Make the channel buffered to prevent blocking.
 
 	// Start the goroutine to monitor the reconnection.
-	go waitForReconnection(player, reconnected)
+	//go waitForReconnection(player, reconnected)
 
 	// Wait for either reconnection or timeout (20 seconds).
-	select {
-	case <-reconnected:
-		// Player reconnected successfully, nothing more to do.
-		fmt.Println("Player reconnected successfully.")
-		return
+	//select {
+	//case <-reconnected:
+	//	// Player reconnected successfully, nothing more to do.
+	//	fmt.Println("Player reconnected successfully.")
+	//	return
 
-	case <-time.After(20 * time.Second):
+	//case <-time.After(20 * time.Second):
 		// Timeout reached, player did not reconnect.
 		// Shut down the room if no reconnection.
 		if player.Room == nil {
@@ -163,7 +179,8 @@ func HandleDisconnection(player *core.Player, opponent *core.Player) {
 			core.RemoveRoom(player.Room) // Remove the room.
 		}
 		core.RemovePlayer(player) // Remove player from the system.
-	}
+		checkersDb.RemovePlayer(player)
+	//}
 }
 
 
