@@ -9,6 +9,11 @@ import (
 
 func (rc *RedisClient) AddToQueue(player *core.Player) error {
 	key := "queue:" + strconv.FormatFloat(player.SelectedBid, 'f', 2, 64)
+
+	if rc.IsPlayerInQueue(player) {
+		return nil 
+	}
+	
 	err := rc.Client.RPush(context.Background(), key, player.Id).Err()
 	if err != nil {
 		return fmt.Errorf("[Redis.Queue] - failed to add to queue: %w", err)
@@ -25,13 +30,14 @@ func (rc *RedisClient) RemoveFromQueue(player *core.Player) error {
 	return nil
 }
 
-func (rc *RedisClient) GetQueueSizeOf(ctx context.Context, bid float64) (int, error) {
+func (rc *RedisClient) GetQueueSizeOf(bid float64) (int) {
 	key := "queue:" + strconv.FormatFloat(bid, 'f', 2, 64)
-	size, err := rc.Client.LLen(ctx, key).Result()
+	size, err := rc.Client.LLen(context.Background(), key).Result()
 	if err != nil {
-		return 0, fmt.Errorf("[Redis.Queue] - failed to get queue size for %s: %w", key, err)
+		fmt.Errorf("[Redis.Queue] - failed to get queue size for %s: %w", key, err)
+		return 0 
 	}
-	return int(size), nil
+	return int(size)
 }
 
 func (rc *RedisClient) GetTotalQueuedPlayers() (int, error) {
@@ -58,4 +64,24 @@ func (rc *RedisClient) GetNextPlayer(ctx context.Context, bid float64) (int, err
 		return 0, fmt.Errorf("[Redis.Queue.GetNextPlayer] - failed to get next player") 
 	}
 	return playerID, nil
+}
+
+
+func (rc *RedisClient) IsPlayerInQueue(player *core.Player) (bool) {
+	key := "queue:" + strconv.FormatFloat(player.SelectedBid, 'f', 2, 64)
+
+	existingPlayers, err := rc.Client.LRange(context.Background(), key, 0, -1).Result()
+	if err != nil {
+		fmt.Errorf("[Redis.Queue] - failed to fetch queue: %w", err)
+		return false
+	}
+
+	playerIDStr := strconv.Itoa(player.Id)
+	for _, id := range existingPlayers {
+		if id == playerIDStr {
+			return true
+		}
+	}
+
+	return false
 }
