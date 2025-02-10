@@ -104,7 +104,7 @@ func handleJoinQueue(player *core.Player, message *message.Message, r *http.Requ
 		return
 	}
 
-	if core.IsPlayerInQueue(player) {
+	if checkersDb.IsPlayerInQueue(player) {
 		player.Conn.WriteMessage(websocket.TextMessage, []byte("You are already in a Queue!..."))
 		return
 	} 
@@ -114,7 +114,8 @@ func handleJoinQueue(player *core.Player, message *message.Message, r *http.Requ
 	core.AddToQueue(player)
 
 	// not enough players to check for a match.
-	if len(core.WaitingQueue) < 2 {
+	//if len(core.WaitingQueue) < 2 {
+	if checkersDb.GetQueueSizeOf(player.SelectedBid) < 2 {
 		player.Conn.WriteMessage(websocket.TextMessage, []byte("Waiting for an opponent..."))
 		return
 	}
