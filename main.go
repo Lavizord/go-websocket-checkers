@@ -3,9 +3,11 @@ package main
 import (
 	"checkers-server/broadcast"
 	"checkers-server/core"
+	"checkers-server/db"
 	"checkers-server/handlers"
 	"checkers-server/redisdb"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -66,7 +68,15 @@ func monitorGameRooms() {
 
 
 func main() {
+	// TODO: Handle this in a better way
+	connStr := "postgres://user:password@localhost:5432/dbname"
+	client, err := db.NewPostgresClient(connStr)
+	if err != nil {
+		log.Fatalf("Error connecting to database: %v", err)
+	}
+	defer client.Close()
 	
+
 	go monitorGameRooms()
 	go broadcast.PlayersInQueue()
 	http.HandleFunc("/ws", handlers.HandleConnection)
