@@ -1,0 +1,11 @@
+{
+  "redis": {
+    "addr": "redis:6379",
+    "db": 0
+  },
+  "services": {
+    "wsapi": { "ports": [8080, 8081, 8082] },
+    "pstatusworker": {},
+    "roomworker": {}
+  }
+}

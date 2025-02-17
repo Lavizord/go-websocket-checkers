@@ -1,0 +1,40 @@
+services:
+  wsapi:
+    container_name: wsapi
+    build:
+      context: . # Root of the project
+      dockerfile: wsapi.dockerfile # Dockerfile in the root
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+
+  pstatusworker:
+    container_name: pstatusworker
+    build:
+      context: .
+      dockerfile: pstatusworker.dockerfile
+    depends_on:
+      - redis
+
+  roomworker:
+    container_name: roomworker
+    build:
+      context: .
+      dockerfile: roomworker.dockerfile
+    depends_on:
+      - redis
+
+  broadcastworker:
+    container_name: broadcastworker
+    build:
+      context: .
+      dockerfile: broadcastworker.dockerfile
+    depends_on:
+      - redis
+
+  redis:
+    container_name: redis
+    image: redis:alpine
+    ports:
+      - "6379:6379"
