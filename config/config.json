@@ -6,6 +6,8 @@
   "services": {
     "wsapi": { "ports": [80, 443] },
     "pstatusworker": {},
-    "roomworker": {}
+    "roomworker": {},
+    "gameworker": {"timer": 15},
+    "broadcastworker": {"timer": 10}
   }
 }

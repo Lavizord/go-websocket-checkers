@@ -51,8 +51,8 @@ func (r *RedisClient) GetRoomAggregates() (*models.RoomAggregateResponse, error)
 		return nil, fmt.Errorf("Error retrieving room aggregates: %v", err)
 	}
 	var roomAggregate []models.RoomAggregate
-	var totalPlayers int
-	totalPlayers = 0
+	var totalPlayers int64
+	totalPlayers, err = r.GetNumPlayersInQueue()
 	for _, key := range keys {
 		parts := strings.Split(key, ":")
 		if len(parts) < 2 {
@@ -72,7 +72,7 @@ func (r *RedisClient) GetRoomAggregates() (*models.RoomAggregateResponse, error)
 			Count:          value,
 		}
 		roomAggregate = append(roomAggregate, aggregate)
-		totalPlayers += int(value)
+		//totalPlayers += int(value)
 	}
 	
 	// Sort by Count in descending order (most players first)
@@ -81,7 +81,7 @@ func (r *RedisClient) GetRoomAggregates() (*models.RoomAggregateResponse, error)
 	})
 
 	return &models.RoomAggregateResponse{
-		PlayersWaiting: totalPlayers,
+		PlayersWaiting: int(totalPlayers),
 		RoomAggregate:  roomAggregate,
 	}, nil
 }

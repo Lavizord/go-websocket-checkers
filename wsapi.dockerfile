@@ -30,7 +30,7 @@ COPY --from=builder /app/ .
 # RUN ls -lh /root/
 
 ENV CONFIG_PATH=/root/config/config.json
-EXPOSE 8080
+EXPOSE 80
 
 # Run the wsapi service
 ENTRYPOINT ["./wsapi/checkers-server"]

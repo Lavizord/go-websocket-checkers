@@ -79,7 +79,7 @@ func handleQueue(msg *messages.Message[json.RawMessage], player *models.Player) 
 		player.Conn.WriteMessage(websocket.TextMessage, []byte("Error adding player to queue"))
 		return
 	}
-
+	redisClient.UpdatePlayersInQueueSet(player.ID, models.StatusInQueue)
 	// we update out player status.
 	redisClient.AddPlayer(player)
 
@@ -98,6 +98,7 @@ func handleLeaveQueue(msg *messages.Message[json.RawMessage], player *models.Pla
 		player.Conn.WriteMessage(websocket.TextMessage, []byte("Invalid status transition to 'Online'"))
 		return
 	}
+	redisClient.UpdatePlayersInQueueSet(player.ID, models.StatusOnline)
 	redisClient.AddPlayer(player)	// This is important, we will only re-add players to a queue that are in queue.
 	queueName := fmt.Sprintf("queue:%f", player.SelectedBet) 
 	err := redisClient.RemovePlayerFromQueue(queueName, player) 
@@ -136,6 +137,7 @@ func handleReadyQueue(msg *messages.Message[json.RawMessage], player *models.Pla
 	}
 	player.Conn.WriteMessage(websocket.TextMessage, []byte("processing 'ready_queue'"))
 	// we update our player to redis.
+	redisClient.UpdatePlayersInQueueSet(player.ID, player.Status)
 	err := redisClient.AddPlayer(player)
 	if err != nil {
 		fmt.Printf("Error adding player to Redis: %v\n", err)
@@ -193,6 +195,7 @@ func handlePlayerDisconnect(player *models.Player) {
 	// Unsubscribe from Redis channels
 	unsubscribeFromPlayerChannel(player)
 	// Notify worker of disconnection
+	redisClient.UpdatePlayersInQueueSet(player.ID, models.StatusOffline)
 	redisClient.RPush("player_offline", player)
 }
 

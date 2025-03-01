@@ -15,6 +15,16 @@ docker rm $(docker ps -aq) // removes containers
 docker rmi $(docker images -aq) // removes images
 ```
 
+### Clean Up space
+
+git fetch --prune
+
+
+You can clean up your local Git repository by deleting all branches except the current one and main with these commands:
+
+    git branch | grep -vE "(main|\*)" | xargs git branch -D
+
+
 #### GOAT:
 
 docker-compose -f docker-compose.dev.yml up --build

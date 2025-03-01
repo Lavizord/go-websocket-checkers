@@ -27,9 +27,9 @@ type Config struct {
 	} `json:"redis"`
 	Services map[string]struct {
 		Ports []int `json:"ports,omitempty"`
+		Timer int   `json:"timer,omitempty"`
 	} `json:"services"`
 }
-
 // Global config instance
 var Cfg Config
 
@@ -37,12 +37,9 @@ func LoadConfig() {
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
 		log.Fatal("[config.go] - CONFIG_PATH not set")
-	}
-	if configPath == "" {
-		log.Fatal("[config.go] - CONFIG_PATH not set")
-	} else {
-		fmt.Println("[config.go] - Config path is:", configPath)
-	}
+	} 
+	fmt.Println("[config.go] - Config path is:", configPath)
+	
 	file, err := os.Open(configPath)
 	if err != nil {
 		log.Fatalf("[config.go] -Error opening config file: %v", err)

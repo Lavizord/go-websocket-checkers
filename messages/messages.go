@@ -37,15 +37,15 @@ type GameUpdatetMessage struct {
 }
 
 type GameTimer struct {
-	PlayerTimer     int `json:"player_timer"`
-	CurrentPlayerID string  `json:"current_player_id"`
+	PlayerTimer     int    `json:"player_timer"`
+	CurrentPlayerID string `json:"current_player_id"`
 }
 
 type GameOver struct {
-	Reason string			`json:"reason"`
-	Winner models.GamePlayer	 `json:"winner"`
-	Turns int				`json:"turns"`
-	GameTime time.Duration `json:"game_time"`
+	Reason   string            `json:"reason"`
+	Winner   models.GamePlayer `json:"winner"`
+	Turns    int               `json:"turns"`
+	GameTime time.Duration     `json:"game_time"`
 }
 
 func EncodeMessage[T any](command string, value T) ([]byte, error) {
@@ -156,17 +156,17 @@ func GenerateQueueConfirmationMessage(value bool) ([]byte, error) {
 }
 
 func GenerateGameStartMessage(game models.Game) ([]byte, error) {
-	gamestart := GameStartMessage {
-		Board: game.Board,
+	gamestart := GameStartMessage{
+		Board:           game.Board.Grid,
 		CurrentPlayerID: game.CurrentPlayerID,
-		GamePlayers: game.Players,
+		GamePlayers:     game.Players,
 	}
 	return NewMessage("game_start", gamestart)
 }
 
 func GenerateGameTimerMessage(game models.Game, timer int) ([]byte, error) {
-	gamestart := GameTimer {
-		PlayerTimer: timer,
+	gamestart := GameTimer{
+		PlayerTimer:     timer,
 		CurrentPlayerID: game.CurrentPlayerID,
 	}
 	return NewMessage("game_timer", gamestart)
@@ -174,16 +174,16 @@ func GenerateGameTimerMessage(game models.Game, timer int) ([]byte, error) {
 
 func GenerateGameOverMessage(reason string, game models.Game) ([]byte, error) {
 	winner, err := game.GetGamePlayer(game.CurrentPlayerID)
-	if err	!= nil {
+	if err != nil {
 		fmt.Printf("Error retrieving game winner player: %v\n", err)
 
 	}
 
-	gameover := GameOver {
-		Reason: reason,
-		Winner: *winner,
-		Turns: game.Turn,
-		GameTime: game.EndTime.Sub(game.StartTime), 		
+	gameover := GameOver{
+		Reason:   reason,
+		Winner:   *winner,
+		Turns:    game.Turn,
+		GameTime: game.EndTime.Sub(game.StartTime),
 	}
 	return NewMessage("game_over", gameover)
 }
@@ -191,8 +191,6 @@ func GenerateGameOverMessage(reason string, game models.Game) ([]byte, error) {
 func GenerateMoveMessage(move models.Move) ([]byte, error) {
 	return NewMessage("move_piece", move)
 }
-
-
 
 // Helper function to marshal a value and ignore errors
 func MustMarshal(v interface{}) json.RawMessage {
