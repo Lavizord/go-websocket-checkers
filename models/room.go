@@ -5,22 +5,17 @@ import (
 	"time"
 )
 
-// TODO: Review this
 // Room represents the data for a game room, containing two players and game details
 type Room struct {
-	ID                string     `json:"id"`
-	Player1           *Player    `json:"player_1"`
-	Player2           *Player    `json:"player_2"`
-	StartDate         time.Time  `json:"start_date"`
-	Currency          string     `json:"currency"`  // Currency for the room
-	BetValue          float64    `json:"bet_value"` // Bet amount for the game
-	Turn              int        `json:"turn"`
-	CurrentPlayerID   string    `json:"current_player_id"`
-	GameBoard         string     `json:"game_board"`  // TODO: Representation of the game board (could be a string of board state?)
-	GameStatus        string     `json:"game_status"` // Status of the game (e.g., "waiting", "in_progress", "finished")
-	GameEndDate       *time.Time `json:"game_end_date,omitempty"`
-	Winner            *Player    `json:"winner,omitempty"` // Player who won (if game is over)
-	IsRoomOpen        bool       `json:"is_room_open"`
+	ID              string     `json:"id"`
+	Player1         *Player    `json:"player_1"`
+	Player2         *Player    `json:"player_2"`
+	StartDate       time.Time  `json:"start_date"`
+	Currency        string     `json:"currency"`  // Currency for the room
+	BetValue        float64    `json:"bet_value"` // Bet amount for the game
+	CurrentPlayerID string     `json:"current_player_id"`
+	IsRoomOpen      bool       `json:"is_room_open"`
+	OperatorIdentifier OperatorIdentifier `json:"operator_identifier"`
 }
 
 func (r *Room) GetOpponentPlayerID(playerID string) (string, error) {

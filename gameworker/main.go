@@ -2,6 +2,7 @@ package main
 
 import (
 	"checkers-server/config"
+	"checkers-server/interfaces"
 	"checkers-server/messages"
 	"checkers-server/models"
 	"checkers-server/postgrescli"
@@ -28,7 +29,14 @@ func init() {
 		log.Fatalf("[%s-Redis] Error initializing Redis client: %v\n", name, err)
 	}
 	redisClient = client
-	sqlcliente, err := postgrescli.NewPostgresCli("sa", "checkersdb", "checkers", "postgres", "5432")
+
+	sqlcliente, err := postgrescli.NewPostgresCli(
+		config.Cfg.Postgres.User,
+		config.Cfg.Postgres.Password,
+		config.Cfg.Postgres.DBName,
+		config.Cfg.Postgres.Host,
+		config.Cfg.Postgres.Port,
+	)
 	if err != nil {
 		log.Fatalf("[%s-PostgreSQL] Error initializing POSTGRES client: %v\n", name, err)
 	}
@@ -440,7 +448,7 @@ func handleGameEnd(game models.Game, reason string, winnerID string) {
 	redisClient.PublishToGamePlayer(*&game.Players[0], string(msg))
 	redisClient.PublishToGamePlayer(*&game.Players[1], string(msg))
 
-	// Now we update the winner player
+	// Now we update the winner player // TODO: I think this breaks the server when the winner is offline.
 	winnerPlayer, err := redisClient.GetPlayer(game.Winner)
 	if err != nil {
 		fmt.Printf("[%s-%d] - (Handle Game Over) - Failed to get winner player!: %v\n", name, pid, err)
@@ -449,7 +457,7 @@ func handleGameEnd(game models.Game, reason string, winnerID string) {
 		// Update status and game Id of players
 		winnerPlayer.GameID = ""
 		winnerPlayer.UpdatePlayerStatus(models.StatusOnline)
-		winnerPlayer.UpdateBalance(game.BetValue * 1.75)
+		winnerPlayer.UpdateBalance(int64(game.BetValue*100) * 2) // TODO: This is repeated code. I Should use the same value as the value sent to the wallet.
 		msgP1, _ := messages.NewMessage("balance_update", winnerPlayer.CurrencyAmount)
 		redisClient.PublishPlayerEvent(winnerPlayer, string(msgP1))
 		redisClient.UpdatePlayer(winnerPlayer)
@@ -476,6 +484,20 @@ func handleGameEnd(game models.Game, reason string, winnerID string) {
 
 	// We then save the game to POSTGRES.
 	postgresClient.SaveGame(game)
+
+	// TODO: Do I really want this here? Or above?
+	// Now we handle the wallet side of things.
+	module, exists := interfaces.OperatorModules[winnerPlayer.OperatorIdentifier.OperatorName]
+	if !exists {
+		fmt.Printf("[RoomWorker-%d] - Error handleReadyQueue getting GenerateOpponentReadyMessage(true) for opponent:%s\n", pid, err)
+		return
+	}
+	session, err := redisClient.GetSessionByID(winnerPlayer.SessionID)
+	if err != nil {
+		fmt.Printf("[RoomWorker-%d] - Error handleReadyQueue fetching player1 sessionID:%s\n", pid, err)
+		return
+	}
+	module.HandlePostWin(postgresClient, redisClient, *session, int(game.BetValue*100), game.ID)
 }
 
 func BroadCastToGamePlayers(msg []byte, game models.Game) {

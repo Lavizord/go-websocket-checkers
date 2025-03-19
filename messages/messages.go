@@ -122,7 +122,7 @@ func GenerateConnectedMessage(player models.Player) ([]byte, error) {
 	connectInfo := GameConnectedMessage{
 		PlayerID:   player.ID,
 		PlayerName: player.Name,
-		Money:      player.CurrencyAmount,
+		Money:      float64(player.CurrencyAmount / 100),
 		Status:     string(player.Status),
 	}
 	return NewMessage("connected", connectInfo)

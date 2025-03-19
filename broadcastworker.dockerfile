@@ -7,6 +7,7 @@ WORKDIR /app/
 COPY go.mod go.sum /app/
 COPY messages /app/messages
 COPY models /app/models
+COPY interfaces /app/interfaces
 COPY config /app/config
 COPY redisdb /app/redisdb
 # RUN echo "Files after copying shared code:" && ls -l /app/

@@ -42,7 +42,7 @@ type Game struct {
 	Winner          string       `json:"winner"`
 	BetValue        float64      `json:"bet_value"` // Bet amount for the game
 	TimerSetting 	string		 `json:"timer_settings"`
-	OperatorName 	string 		 `json:"operator_name"`
+	OperatorIdentifier OperatorIdentifier `json:"operator_identifier"`
 }
 
 // Move represents a single move in the game
@@ -88,12 +88,13 @@ func (r *Room) NewGame() *Game {
 		//Board:           *NewBoard(r.CurrentPlayerID, whiteID, "multiple-capture"),
 		Players:         mapPlayers(r),
 		CurrentPlayerID: r.CurrentPlayerID,
-		Turn:            r.Turn,
+		Turn:            0,
 		Moves:           []Move{},
 		StartTime:       time.Now(),
 		Winner:          "",
 		BetValue:        r.BetValue,
 		TimerSetting: config.Cfg.Services["gameworker"].TimerSetting,
+		OperatorIdentifier: r.OperatorIdentifier,
 	}
 
 	if game.Players[0].ID == whiteID {

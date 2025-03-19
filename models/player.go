@@ -9,28 +9,30 @@ import (
 type PlayerStatus string
 
 const (
-	StatusOffline               PlayerStatus = "OFFLINE"
-	StatusOnline                PlayerStatus = "ONLINE"
-	StatusInQueue               PlayerStatus = "IN_QUEUE"
-	StatusInRoom	            PlayerStatus = "IN_ROOM"
-	StatusInRoomReady			PlayerStatus = "IN_ROOM_READY"
-	StatusInGame                PlayerStatus = "IN_GAME"
+	StatusOffline     PlayerStatus = "OFFLINE"
+	StatusOnline      PlayerStatus = "ONLINE"
+	StatusInQueue     PlayerStatus = "IN_QUEUE"
+	StatusInRoom      PlayerStatus = "IN_ROOM"
+	StatusInRoomReady PlayerStatus = "IN_ROOM_READY"
+	StatusInGame      PlayerStatus = "IN_GAME"
 )
 
 type Player struct {
-	ID             string          `json:"id"`
-	Token          string          `json:"token"`
-	RoomID         string          `json:"room_id"`
-	GameID         string          `json:"game_id"`
-	SessionID      string          `json:"session_id"`
-	Currency       string          `json:"currency"`
-	CurrencyAmount float64         `json:"currency_amount"`
-	Status         PlayerStatus    `json:"status"`
-	SelectedBet    float64         `json:"selected_bet"`
-	Name           string          `json:"name"`
-	Conn           *websocket.Conn `json:"-"` // Exclude Conn from JSON
-	WriteChan      chan []byte 	   `json:"-"`// Channel for serialized writes
+	ID                 string             `json:"id"`
+	Token              string             `json:"token"`
+	RoomID             string             `json:"room_id"`
+	GameID             string             `json:"game_id"`
+	SessionID          string             `json:"session_id"`
+	Currency           string             `json:"currency"`
+	CurrencyAmount     int64              `json:"currency_amount"`
+	Status             PlayerStatus       `json:"status"`
+	SelectedBet        float64            `json:"selected_bet"`
+	Name               string             `json:"name"`
+	Conn               *websocket.Conn    `json:"-"` // Exclude Conn from JSON
+	WriteChan          chan []byte        `json:"-"` // Channel for serialized writes
+	OperatorIdentifier OperatorIdentifier `json:"operator_identifier"`
 }
+
 func (p *Player) StartWriteGoroutine() {
 	go func() {
 		for message := range p.WriteChan {
@@ -65,11 +67,11 @@ var validStatusTransitions = map[PlayerStatus]map[PlayerStatus]bool{
 		StatusInRoomReady: true,
 	},
 	StatusInRoomReady: {
-		StatusInRoom: 		 true,
-		StatusInGame:        true,
+		StatusInRoom: true,
+		StatusInGame: true,
 	},
 	StatusInGame: {
-		StatusOnline: true,
+		StatusOnline:  true,
 		StatusOffline: true,
 	},
 }
@@ -88,7 +90,7 @@ func (p *Player) UpdatePlayerStatus(newStatus PlayerStatus) error {
 	return nil
 }
 
-func (p *Player) UpdateBalance(value float64) error {
+func (p *Player) UpdateBalance(value int64) error {
 
 	newAmount := p.CurrencyAmount + value
 	if newAmount < 0 {
@@ -98,7 +100,7 @@ func (p *Player) UpdateBalance(value float64) error {
 	return nil
 }
 
-func (p * Player) IsEligibleForQueue() bool {
+func (p *Player) IsEligibleForQueue() bool {
 	if p == nil || p.Status != StatusInQueue {
 		return false
 	}
