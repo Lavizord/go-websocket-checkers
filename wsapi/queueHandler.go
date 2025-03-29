@@ -12,7 +12,7 @@ import (
 
 type QueueHandler struct {
 	player      *models.Player
-	redisClient redisdb.RedisClient
+	redisClient *redisdb.RedisClient
 	msg         *messages.Message[json.RawMessage]
 
 	// Track changes for cleanup
@@ -33,10 +33,6 @@ func (qh *QueueHandler) process() {
 		return
 	}
 
-	if !qh.validatePlayerBalance(betValue) {
-		return
-	}
-
 	qh.updatePlayerState(betValue)
 	qh.addToRedisQueue()
 	qh.updateQueueCount()
@@ -50,20 +46,20 @@ func (qh *QueueHandler) cleanup() {
 		qh.redisClient.UpdatePlayer(qh.player)
 		sendFailedQueueConfirmation = true
 	}
-	
+
 	if qh.addedToQueue {
 		queueName := fmt.Sprintf("queue:%f", qh.player.SelectedBet)
 		qh.redisClient.Client.LRem(context.Background(), queueName, 1, qh.player)
 		sendFailedQueueConfirmation = true
 	}
-	
+
 	if qh.queueCountIncr {
 		qh.redisClient.DecrementQueueCount(qh.player.SelectedBet)
 		sendFailedQueueConfirmation = true
 	}
 
 	if sendFailedQueueConfirmation {
-		msg, _ := messages.GenerateQueueConfirmationMessage(false);
+		msg, _ := messages.GenerateQueueConfirmationMessage(false)
 		qh.player.WriteChan <- msg
 	}
 }
@@ -86,20 +82,6 @@ func (qh *QueueHandler) parseBetValue() (float64, error) {
 		return 0, err
 	}
 	return betValue, nil
-}
-
-func (qh *QueueHandler) validatePlayerBalance(betValue float64) bool {
-	convertedBet := int64(betValue * 100)
-	if qh.player.CurrencyAmount < convertedBet {
-		printMsg := fmt.Sprintf(
-			"Error: Player doesn't have enough currency to place bet, player currency: [%v] betValue in int: [%v]\n",
-			qh.player.CurrencyAmount, convertedBet,
-		)
-		fmt.Println(printMsg)
-		qh.player.WriteChan <- []byte(printMsg)
-		return false
-	}
-	return true
 }
 
 func (qh *QueueHandler) updatePlayerState(betValue float64) {

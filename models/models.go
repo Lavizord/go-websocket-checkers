@@ -17,7 +17,6 @@ type Session struct {
 	ID                 string             `json:"session_id"`
 	Token              string             `json:"token"`
 	PlayerName         string             `json:"player_name"`
-	Balance            int64              `json:"balance"`
 	Currency           string             `json:"currency"`
 	OperatorBaseUrl    string             `json:"operator_base_url"`
 	CreatedAt          time.Time          `json:"created_at"`
@@ -53,7 +52,7 @@ type Transaction struct {
 	ID          string    `json:"transaction_id"` // Unique ID for each transaction
 	SessionID   string    `json:"session_id"`     // Session ID for the player
 	Type        string    `json:"type"`           // Type of transaction: 'bet' or 'win'
-	Amount      int       `json:"amount"`         // Amount in cents
+	Amount      int64     `json:"amount"`         // Amount in cents
 	Currency    string    `json:"currency"`       // Currency code (e.g., EUR, USD)
 	Platform    string    `json:"platform"`       // Platform name
 	Operator    string    `json:"operator"`       // Operator name (e.g., SokkerDuel)
@@ -66,10 +65,10 @@ type Transaction struct {
 }
 
 type OperatorIdentifier struct {
-	OperatorName     string `json:"operator_name"`
-	OperatorGameName string `json:"operator_game_name"`
-	GameName         string `json:"game_name"`
-	WinFactor		 float64`json:`
+	OperatorName     string  `json:"operator_name"`
+	OperatorGameName string  `json:"operator_game_name"`
+	GameName         string  `json:"game_name"`
+	WinFactor        float64 `json:`
 }
 
 type PlayerCountPerBetValue struct {

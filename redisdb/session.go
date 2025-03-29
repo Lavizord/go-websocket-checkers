@@ -11,7 +11,6 @@ import (
 func (r *RedisClient) AddSession(session *models.Session) error {
 	ctx := context.Background()
 
-	// Ensure CreatedAt is set if not already
 	if session.CreatedAt.IsZero() {
 		session.CreatedAt = time.Now()
 	}
@@ -23,21 +22,33 @@ func (r *RedisClient) AddSession(session *models.Session) error {
 	if err != nil {
 		return fmt.Errorf("[RedisClient] (Session) - failed to serialize operator identifier: %v", err)
 	}
-	// Store session data in a hash
+	// Use pipeline for atomic operations
+	pipe := r.Client.TxPipeline()
+	// 1. Store session data
 	sessionKey := fmt.Sprintf("session:%s", session.ID)
-	err = r.Client.HSet(ctx, sessionKey, map[string]interface{}{
+	pipe.HSet(ctx, sessionKey, map[string]interface{}{
 		"id":                  session.ID,
 		"token":               session.Token,
 		"player_name":         session.PlayerName,
-		"balance":             session.Balance,
 		"currency":            session.Currency,
 		"operator_identifier": string(operatorIdentifierData),
 		"operator_base_url":   session.OperatorBaseUrl,
-		"created_at":          session.CreatedAt.Format(time.RFC3339), // Store timestamp as string
-		"data":                string(data),                           // Store full session JSON
-	}).Err()
+		"created_at":          session.CreatedAt.Format(time.RFC3339),
+		"data":                string(data),
+	})
+	// 2. Create token->ID mapping to help fetch session by token
+	tokenKey := fmt.Sprintf("session_token:%s", session.Token)
+	pipe.Set(ctx, tokenKey, session.ID, 0)
+	// 3. Create operator index to fetch by operator data.
+	indexKey := fmt.Sprintf("session_index:%s:%s:%s",
+		session.OperatorIdentifier.OperatorName,
+		session.PlayerName,
+		session.Currency)
+	pipe.Set(ctx, indexKey, session.ID, 0)
+	// Execute all operations atomically
+	_, err = pipe.Exec(ctx)
 	if err != nil {
-		return fmt.Errorf("[RedisClient] (Session) - failed to store session data: %v", err)
+		return fmt.Errorf("[RedisClient] (Session) - failed to store session: %v", err)
 	}
 	return nil
 }
@@ -46,15 +57,41 @@ func (r *RedisClient) RemoveSession(sessionID string) error {
 	ctx := context.Background()
 	sessionKey := fmt.Sprintf("session:%s", sessionID)
 
-	exists, err := r.Client.HExists(ctx, sessionKey, "id").Result()
+	// First retrieve all necessary metadata
+	fields, err := r.Client.HMGet(ctx, sessionKey,
+		"operator_identifier",
+		"player_name",
+		"currency",
+		"token",
+	).Result()
+
+	if err != nil || fields[0] == nil || fields[1] == nil || fields[2] == nil || fields[3] == nil {
+		return fmt.Errorf("[RedisClient] - failed to retrieve session metadata: %v", err)
+	}
+
+	// Unmarshal operator identifier
+	var opIdentifier models.OperatorIdentifier
+	if err := json.Unmarshal([]byte(fields[0].(string)), &opIdentifier); err != nil {
+		return fmt.Errorf("[RedisClient] - failed to unmarshal operator identifier: %v", err)
+	}
+
+	// Prepare pipeline for atomic deletion
+	pipe := r.Client.TxPipeline()
+	// 1. Delete main session hash
+	pipe.Del(ctx, sessionKey)
+	// 2. Delete token index (NEW)
+	tokenKey := fmt.Sprintf("session_token:%s", fields[3].(string))
+	pipe.Del(ctx, tokenKey)
+	// 3. Delete operator index
+	indexKey := fmt.Sprintf("session_index:%s:%s:%s",
+		opIdentifier.OperatorName,
+		fields[1].(string),
+		fields[2].(string))
+	pipe.Del(ctx, indexKey)
+	// Execute all deletions
+	_, err = pipe.Exec(ctx)
 	if err != nil {
-		return fmt.Errorf("[RedisClient] - failed to check if session exists: %v", err)
-	}
-	if !exists {
-		return fmt.Errorf("[RedisClient] - attempting to delete session that does not exist: %s", sessionID)
-	}
-	if err := r.Client.Del(ctx, sessionKey).Err(); err != nil {
-		return fmt.Errorf("[RedisClient] - failed to delete session: %v", err)
+		return fmt.Errorf("[RedisClient] - failed to delete session data: %v", err)
 	}
 	return nil
 }
@@ -63,46 +100,50 @@ func (r *RedisClient) GetSessionByID(sessionID string) (*models.Session, error) 
 	ctx := context.Background()
 	sessionKey := fmt.Sprintf("session:%s", sessionID)
 
-	data, err := r.Client.HGet(ctx, sessionKey, "data").Result()
+	// Retrieve session fields (including 'data' and any other necessary fields)
+	fields, err := r.Client.HMGet(ctx, sessionKey, "data").Result()
 	if err != nil {
 		return nil, fmt.Errorf("[RedisClient] - failed to retrieve session %s: %v", sessionID, err)
 	}
+	if fields[0] == nil {
+		return nil, fmt.Errorf("[RedisClient] - session data not found for %s", sessionID)
+	}
+
+	// Unmarshal 'data' field into the session object
 	var session models.Session
+	data, ok := fields[0].(string) // Ensure correct type assertion
+	if !ok {
+		return nil, fmt.Errorf("[RedisClient] - session data is not a valid string")
+	}
+
 	if err := json.Unmarshal([]byte(data), &session); err != nil {
 		return nil, fmt.Errorf("[RedisClient] - failed to unmarshal session data: %v", err)
 	}
+
 	return &session, nil
 }
 
 func (r *RedisClient) GetSessionByToken(token string) (*models.Session, error) {
 	ctx := context.Background()
-	
-	// Scan through all session keys
-	iter := r.Client.Scan(ctx, 0, "session:*", 0).Iterator()
-	for iter.Next(ctx) {
-		sessionKey := iter.Val()
-		storedToken, err := r.Client.HGet(ctx, sessionKey, "token").Result()
-		if err != nil {
-			continue 
-		}
-		if storedToken == token {
-			data, err := r.Client.HGet(ctx, sessionKey, "data").Result()
-			if err != nil {
-				return nil, fmt.Errorf("[RedisClient] - failed to retrieve session data: %v", err)
-			}
+	tokenKey := fmt.Sprintf("session_token:%s", token)
+	// 1. Get ID from token index
+	sessionID, err := r.Client.Get(ctx, tokenKey).Result()
+	if err != nil {
+		return nil, fmt.Errorf("[RedisClient] - session not found for token: %s", token)
+	}
+	return r.GetSessionByID(sessionID)
+}
 
-			var session models.Session
-			if err := json.Unmarshal([]byte(data), &session); err != nil {
-				return nil, fmt.Errorf("[RedisClient] - failed to unmarshal session data: %v", err)
-			}
+func (r *RedisClient) GetSessionByOperatorPlayerCurrency(operator, playerName, currency string) (*models.Session, error) {
+	ctx := context.Background()
+	indexKey := fmt.Sprintf("session_index:%s:%s:%s", operator, playerName, currency)
 
-			return &session, nil
-		}
+	// Fetch session ID using index
+	sessionID, err := r.Client.Get(ctx, indexKey).Result()
+	if err != nil {
+		return nil, fmt.Errorf("[RedisClient] - session not found for operator: %s, player: %s, currency: %s", operator, playerName, currency)
 	}
 
-	if err := iter.Err(); err != nil {
-		return nil, fmt.Errorf("[RedisClient] - failed to iterate session keys: %v", err)
-	}
-
-	return nil, fmt.Errorf("[RedisClient] - session not found for token: %s", token)
+	// Fetch full session data
+	return r.GetSessionByID(sessionID)
 }

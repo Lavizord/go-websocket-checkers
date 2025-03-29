@@ -2,6 +2,7 @@ package wsapi
 
 import (
 	"checkers-server/config"
+	"checkers-server/interfaces"
 	"checkers-server/messages"
 	"checkers-server/models"
 	"checkers-server/redisdb"
@@ -46,7 +47,7 @@ func HandleConnection(w http.ResponseWriter, r *http.Request) {
 	session, err := FetchAndValidateSession(token, sessionID, currency)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Unauthorized: token[%v], sessionid[%v], currency[%v]", token, sessionID, currency), http.StatusUnauthorized)
-		if session != nil{
+		if session != nil {
 			redisClient.RemoveSession(session.ID)
 		}
 		return
@@ -69,7 +70,6 @@ func HandleConnection(w http.ResponseWriter, r *http.Request) {
 			Name:               discPlayer.Name,
 			SessionID:          discPlayer.SessionID,
 			Currency:           currency,
-			CurrencyAmount:     discPlayer.CurrencyAmount,
 			Status:             models.StatusInGame,
 			GameID:             discPlayer.GameID,
 			WriteChan:          make(chan []byte),
@@ -84,12 +84,12 @@ func HandleConnection(w http.ResponseWriter, r *http.Request) {
 			Name:               session.PlayerName,
 			SessionID:          session.ID,
 			Currency:           currency,
-			CurrencyAmount:     session.Balance,
 			Status:             models.StatusOnline,
 			WriteChan:          make(chan []byte),
 			OperatorIdentifier: session.OperatorIdentifier,
 		}
 		player = newPlayer
+		redisClient.AddPlayer(player) // Since its a new player, we add it to redis.
 	}
 	player.StartWriteGoroutine() // Start the write goroutine
 
@@ -101,18 +101,19 @@ func HandleConnection(w http.ResponseWriter, r *http.Request) {
 	subscriptionReady := make(chan bool)
 	go subscribeToPlayerChannel(player, subscriptionReady)
 	<-subscriptionReady // Wait for the subscription to be ready
-
-	err = redisClient.RPush("player_online", player)
+	module, _ := interfaces.OperatorModules[player.OperatorIdentifier.OperatorName]
+	walletBalance, err := module.HandleFetchWalletBalance(*session, redisClient)
 	if err != nil {
-		fmt.Println("[wsapi] - Failed to push player online", err)
-		playersMutex.Lock()
-		delete(players, player.ID)
-		playersMutex.Unlock()
-		unsubscribeFromPlayerChannel(player)
-		conn.Close()
+		log.Printf("Failed to fetch wallet : %v", err)
 		return
 	}
-	fmt.Println("[wsapi] - Player added online:", player.ID)
+	msg, err := messages.GenerateConnectedMessage(*player, walletBalance)
+	if err != nil {
+		log.Printf("Failed to fetchgenerate connected message : %v", err)
+		return
+	}
+	player.WriteChan <- msg
+
 	// Now that our player has subscribbed to our stuff, we will notify the gameworker of the reconnect.
 	if discPlayer != nil {
 		redisClient.RPush("reconnect_game", player)

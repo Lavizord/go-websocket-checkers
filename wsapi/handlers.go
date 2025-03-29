@@ -33,7 +33,7 @@ func handleMessages(player *models.Player) {
 			handleQueue(message, player)
 
 		case "leave_queue":
-			handleLeaveQueue(message, player)
+			handleLeaveQueue(player)
 
 		case "ready_queue":
 			handleReadyQueue(message, player)
@@ -65,13 +65,13 @@ func handleMessages(player *models.Player) {
 func handleQueue(msg *messages.Message[json.RawMessage], player *models.Player) {
 	qh := &QueueHandler{
 		player:      player,
-		redisClient: *redisClient,
+		redisClient: redisClient,
 		msg:         msg,
 	}
 	qh.process()
 }
 
-func handleLeaveQueue(msg *messages.Message[json.RawMessage], player *models.Player) {
+func handleLeaveQueue(player *models.Player) {
 	if player.UpdatePlayerStatus(models.StatusOnline) != nil {
 		player.WriteChan <- []byte("Invalid status transition to 'Online'")
 		//player.Conn.WriteMessage(websocket.TextMessage, []byte("Invalid status transition to 'Online'"))
@@ -169,19 +169,19 @@ func handleLeaveRoom(player *models.Player) {
 
 func handleLeaveGame(player *models.Player) {
 	// update the player status
-	if player.UpdatePlayerStatus(models.StatusOnline) != nil {
-		player.WriteChan <- []byte("Invalid status transition to 'leave_game'")
-		return
-	}
+	//if player.UpdatePlayerStatus(models.StatusOnline) != nil {
+	//	player.WriteChan <- []byte("Invalid status transition to 'leave_game'")
+	//	return
+	//}
 	player.WriteChan <- []byte("processing 'leave_game'")
 
-	err := redisClient.UpdatePlayer(player)
-	if err != nil {
-		log.Printf("Error adding player to Redis: %v\n", err)
-		player.WriteChan <- []byte("Error adding player")
-		return
-	}
-	err = redisClient.RPush("leave_game", player)
+	//err := redisClient.UpdatePlayer(player)
+	//if err != nil {
+	//	log.Printf("Error adding player to Redis: %v\n", err)
+	//	player.WriteChan <- []byte("Error adding player")
+	//	return
+	//}
+	err := redisClient.RPush("leave_game", player)
 	if err != nil {
 		log.Printf("Error pushing player to Redis leave_game queue: %v\n", err)
 		player.WriteChan <- []byte("Error adding player to leave_game")
@@ -234,7 +234,6 @@ func UpdatePlayerDataFromRedis(player *models.Player) {
 		return
 	}
 	player.Currency = playerData.Currency
-	player.CurrencyAmount = playerData.CurrencyAmount
 	player.Status = playerData.Status
 	player.SelectedBet = playerData.SelectedBet
 	player.RoomID = playerData.RoomID

@@ -8,6 +8,7 @@ COPY go.mod go.sum main.go /app/
 COPY messages /app/messages
 COPY models /app/models
 COPY interfaces /app/interfaces
+COPY walletrequests /app/walletrequests
 COPY config /app/config
 COPY postgrescli /app/postgrescli
 COPY redisdb /app/redisdb

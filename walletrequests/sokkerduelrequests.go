@@ -14,30 +14,30 @@ import (
 	"time"
 )
 
-func SokkerDuelGetWallet(op models.Operator, token string) (*models.WalletResponse, error) {
+func SokkerDuelGetWallet(baseUrl string, token string) (*models.WalletResponse, error) {
 	// Parse the base URL
-	baseUrl, err := url.Parse(op.OperatorWalletBaseUrl)
+	baseUrlParsed, err := url.Parse(baseUrl)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse base URL: %v", err)
 	}
-	baseUrl.Path = path.Join(baseUrl.Path, "wallet")
+	baseUrlParsed.Path = path.Join(baseUrlParsed.Path, "wallet")
 
-	req, err := http.NewRequest("POST", baseUrl.String(), nil)
+	req, err := http.NewRequest("POST", baseUrlParsed.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create request: %v", err)
 	}
 	req.Header.Set("x-access-token", token)
-    req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/json")
 
 	// Print request (updated to show all headers)
 	fmt.Println("===== API REQUEST =====")
-	log.Printf("URL: %s\n", baseUrl.String())
+	log.Printf("URL: %s\n", baseUrlParsed.String())
 	log.Printf("Headers: %v\n", req.Header)
-	
+
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{
 		Timeout: 10 * time.Second, // Added timeout for reliability.
-		Jar:     jar,  // Enable cookies // TODO: Review this.
+		Jar:     jar,              // Enable cookies // TODO: Review this.
 
 	}
 	resp, err := client.Do(req)
@@ -150,7 +150,7 @@ func SokkerDuelPostWin(session models.Session, winData models.SokkerDuelWin) (*m
 	log.Printf("URL: %s\n", baseUrl.String())
 	log.Printf("Headers: x-access-token=%s\n", session.Token)
 	log.Printf("Body: %s\n", string(jsonData))
-	
+
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {

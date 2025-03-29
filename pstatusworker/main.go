@@ -2,7 +2,6 @@ package main
 
 import (
 	"checkers-server/config"
-	"checkers-server/messages"
 	"checkers-server/models"
 	"checkers-server/redisdb"
 	"log"
@@ -26,30 +25,30 @@ func init() {
 
 func main() {
 	log.Printf("[PStatus Worker-%d] - Waiting for player connections...\n", pid)
-	go processPlayerOnline()
+	//go processPlayerOnline()
 	go processPlayerOffline()
 	go redisClient.StartSessionCleanup(time.Minute * 60) // TODO: This might need to be reviwed... What if there are multiple pstatus workers? Maybe I need to make a separate worker to clean up the sessions.
 	select {}
 }
 
-func processPlayerOnline() {
-	for {
-		playerData, err := redisClient.BLPop("player_online", 0) // Block
-		if err != nil {
-			log.Printf("[PStatus Worker-%d] - Error retrieving player:%v\n", pid, err)
-			continue
-		}
-		log.Printf("[PStatus Worker-%d] - Player connected: %+v\n", pid, playerData)
-		handleNewPlayer(playerData)
-		msg, _ := messages.GenerateGameInfoMessageBytes(redisClient)
-		err = redisClient.PublishToPlayer(*playerData, string(msg))
-		if err != nil {
-			log.Printf("[PStatus Worker-%d] - Failed to publish message to player: %v\n", pid, err)
-			return
-		}
-
-	}
-}
+//func processPlayerOnline() {
+//	for {
+//		playerData, err := redisClient.BLPop("player_online", 0) // Block
+//		if err != nil {
+//			log.Printf("[PStatus Worker-%d] - Error retrieving player:%v\n", pid, err)
+//			continue
+//		}
+//		log.Printf("[PStatus Worker-%d] - Player connected: %+v\n", pid, playerData)
+//		handleNewPlayer(playerData)
+//		msg, _ := messages.GenerateGameInfoMessageBytes(redisClient)
+//		err = redisClient.PublishToPlayer(*playerData, string(msg))
+//		if err != nil {
+//			log.Printf("[PStatus Worker-%d] - Failed to publish message to player: %v\n", pid, err)
+//			return
+//		}
+//
+//	}
+//}
 
 func processPlayerOffline() {
 	for {
@@ -119,36 +118,20 @@ func handleDisconnectPlayer(player *models.Player) {
 
 }
 
-func handleNewPlayer(player *models.Player) {
-	log.Printf("[PStatus Worker-%d] - Handling player: %s (Session: %s, Currency: %s)\n",
-		pid, player.ID, player.SessionID, player.Currency)
-
-	err := redisClient.AddPlayer(player)
-	if err != nil {
-		log.Printf("[PStatus Worker-%d] - Failed to add player: %v\n", pid, err)
-		return
-	}
-	jsonMessage, err := messages.GenerateConnectedMessage(*player)
-	err = redisClient.PublishToPlayer(*player, string(jsonMessage))
-	if err != nil {
-		log.Printf("[PStatus Worker-%d] - Failed to publish message to player: %v\n", pid, err)
-		return
-	}
-	//log.Printf("[PStatus Worker-%d] - Player successfully handled and notified.\n", pid)
-}
-
-func updatePlayerToRedis(player *models.Player) {
-
-	err := redisClient.UpdatePlayer(player)
-	if err != nil {
-		log.Printf("[PStatus Worker-%d] - Failed to add player: %v\n", pid, err)
-		return
-	}
-	jsonMessage, err := messages.GenerateConnectedMessage(*player)
-	err = redisClient.PublishToPlayer(*player, string(jsonMessage))
-	if err != nil {
-		log.Printf("[PStatus Worker-%d] - Failed to publish message to player: %v\n", pid, err)
-		return
-	}
-	//log.Printf("[PStatus Worker-%d] - Player successfully handled and notified.\n", pid)
-}
+//func handleNewPlayer(player *models.Player) {
+//	log.Printf("[PStatus Worker-%d] - Handling player: %s (Session: %s, Currency: %s)\n",
+//		pid, player.ID, player.SessionID, player.Currency)
+//
+//	err := redisClient.AddPlayer(player)
+//	if err != nil {
+//		log.Printf("[PStatus Worker-%d] - Failed to add player: %v\n", pid, err)
+//		return
+//	}
+//	jsonMessage, err := messages.GenerateConnectedMessage(*player)
+//	err = redisClient.PublishToPlayer(*player, string(jsonMessage))
+//	if err != nil {
+//		log.Printf("[PStatus Worker-%d] - Failed to publish message to player: %v\n", pid, err)
+//		return
+//	}
+//	//log.Printf("[PStatus Worker-%d] - Player successfully handled and notified.\n", pid)
+//}

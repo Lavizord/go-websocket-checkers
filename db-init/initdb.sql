@@ -35,7 +35,6 @@ CREATE TABLE IF NOT EXISTS sessions (
     SessionId VARCHAR(255) PRIMARY KEY,  -- Unique session ID
     Token VARCHAR(255) NOT NULL,          -- Session token
     PlayerName VARCHAR(255) NOT NULL,    -- Player's name
-    Balance BIGINT NOT NULL,              -- Player's balance (in cents or smallest currency unit)
     Currency VARCHAR(10) NOT NULL,        -- Currency code (e.g., EUR, USD)
     OperatorBaseUrl VARCHAR(255) NOT NULL,  -- Operator's base URL
     CreatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,  -- Timestamp when the session was created

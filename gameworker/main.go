@@ -47,7 +47,7 @@ func main() {
 	log.Printf("[%s-%d] - Waiting for Game messages...\n", name, pid)
 	go processGameCreation()
 	go processGameMoves()
-	go processLeaveGame() 	// DISABLED, ACTIVATE WHEN IMPLEMENTING THE LEAVE GAME COMMAND.
+	go processLeaveGame()
 	go processDisconnectFromGame()
 	go processReconnectFromGame()
 	select {}
@@ -199,6 +199,11 @@ func processLeaveGame() {
 			continue
 		}
 		log.Printf("[%s-%d] - Processing the leave game: %+v\n", name, pid, playerData)
+		playerData, err = redisClient.GetPlayer(playerData.ID)
+		if err != nil {
+			log.Printf("[%s-%d] - (Process Leave Game) - Error re-fetching player data.: %v\n", name, pid, err)
+			continue
+		}
 		game, err := redisClient.GetGame(playerData.GameID)
 		if err != nil {
 			log.Printf("[%s-%d] - Error retrieving Game:%v\n", name, pid, err)
@@ -219,7 +224,7 @@ func processDisconnectFromGame() {
 			continue
 		}
 		//playerData, err = redisClient.GetPlayer(playerData.ID)	// We cant do the get player, because it was already removed...
-		log.Printf("[%s-%d] - Processing the leave game: %+v\n", name, pid, playerData)
+		log.Printf("[%s-%d] - Processing the disconnect from game: %+v\n", name, pid, playerData)
 		game, err := redisClient.GetGame(playerData.GameID)
 		if err != nil {
 			log.Printf("[%s-%d] - Error retrieving Game:%v\n", name, pid, err)
@@ -227,7 +232,6 @@ func processDisconnectFromGame() {
 		}
 		redisClient.SaveDisconnectSessionPlayerData(*playerData, *game)
 		gamePlayer, _ := game.GetGamePlayer(playerData.ID)
-
 		// Now we notify the other player that this happened
 		msg, _ := messages.NewMessage("opponent_disconnected_game", "disconnected")
 		opponent, _ := game.GetOpponentGamePlayer(gamePlayer.ID)
@@ -244,13 +248,11 @@ func processReconnectFromGame() {
 			continue
 		}
 		log.Printf("[%s-%d]  (Process Reconnect Game) - Processing the reconnect game: %+v\n", name, pid, playerData)
-
 		game, err := redisClient.GetGame(playerData.GameID)
 		if err != nil {
 			log.Printf("[%s-%d] - (Process Reconnect Game) - Error retrieving game data from redis: %v\n", name, pid, err)
 			continue
 		}
-
 		// We send a message to the reconnected player with the board state.
 		msg, err := messages.GenerateGameReconnectMessage(*game)
 		if err != nil {
@@ -262,12 +264,10 @@ func processReconnectFromGame() {
 			log.Printf("[%s-%d] - (Process Reconnect Game) - Error publishing game reconnect message: %v\n", name, pid, err)
 			continue
 		}
-
 		// We notify the opponent that the player reconnected.
 		opponent, _ := game.GetOpponentGamePlayer(playerData.ID)
 		msg, _ = messages.NewMessage("opponent_disconnected_game", "reconnected")
 		redisClient.PublishToGamePlayer(*opponent, string(msg))
-
 		redisClient.DeleteDisconnectedPlayerSession(playerData.SessionID)
 	}
 }
@@ -439,13 +439,13 @@ func startCumulativeTimer(game *models.Game) {
 }
 
 func handleGameEnd(game models.Game, reason string, winnerID string) {
-	var winnings int64
-	winnings = 0
+	fmt.Printf("Handling Game End for game [%v] - reason: [%v]", game.ID, reason)
+	var winAmount int64 = 0
 	// if the game is over, lets stop the timers.
 	publishStopToTimerChannel(game.ID)
 	game.FinishGame(winnerID)
 
-	// Now we update the winner player 
+	// Now we update the winner player
 	winnerPlayer, err := redisClient.GetPlayer(game.Winner)
 	if err != nil {
 		log.Printf("[%s-%d] - (Handle Game Over) - Failed to get winner player!: %v\n", name, pid, err)
@@ -463,18 +463,20 @@ func handleGameEnd(game models.Game, reason string, winnerID string) {
 			return
 		}
 		log.Printf("[RoomWorker-%d] - Session extract ID, before posting bet :%s\n", pid, err)
-		newBalance, err := module.HandlePostWin(postgresClient, redisClient, *session, int(game.BetValue*100), game.ID)
+		var newBalance int64
+		newBalance, winAmount, err = module.HandlePostWin(postgresClient, redisClient, *session, int64(game.BetValue*100), game.ID)
+		if err != nil {
+			log.Printf("[RoomWorker-%d] - Error posting the win :%s\n", pid, err)
+		} else {
+			msgP1, _ := messages.NewMessage("balance_update", float64(newBalance)/100)
+			redisClient.PublishPlayerEvent(winnerPlayer, string(msgP1))
+		}
 		// Update status and game Id of players
 		winnerPlayer.GameID = ""
 		winnerPlayer.UpdatePlayerStatus(models.StatusOnline)
-		winnings = newBalance - winnerPlayer.CurrencyAmount
-		_ = winnerPlayer.SetBalance(newBalance)
-		msgP1, _ := messages.NewMessage("balance_update", float64(winnerPlayer.CurrencyAmount)/100)
-		redisClient.PublishPlayerEvent(winnerPlayer, string(msgP1))
 		redisClient.UpdatePlayer(winnerPlayer)
 	}
-
-	msg, err := messages.GenerateGameOverMessage(reason, game, winnings)
+	msg, err := messages.GenerateGameOverMessage(reason, game, winAmount)
 	if err != nil {
 		log.Printf("[%s-%d] - (Handle Game Over) - Failed to get game!: %v\n", name, pid, err)
 		return
@@ -504,7 +506,6 @@ func handleGameEnd(game models.Game, reason string, winnerID string) {
 	// We then save the game to POSTGRES.
 	postgresClient.SaveGame(game)
 	cleanUpGameDisconnectedPlayers(game)
-
 }
 
 func cleanUpGameDisconnectedPlayers(game models.Game) {
@@ -525,7 +526,7 @@ func cleanUpGameDisconnectedPlayers(game models.Game) {
 }
 
 func isEven(n int) bool {
-    return n&1 == 0  // Last bit = 0 → even
+	return n&1 == 0 // Last bit = 0 → even
 }
 
 func BroadCastToGamePlayers(msg []byte, game models.Game) {
