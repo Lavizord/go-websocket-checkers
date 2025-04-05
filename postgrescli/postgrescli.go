@@ -66,14 +66,15 @@ func (pc *PostgresCli) SaveSession(session models.Session) error {
 func (pc *PostgresCli) SaveTransaction(transaction models.Transaction) error {
 	query := `
 		INSERT INTO transactions (
-			SessionID, Type, Amount, Currency, Platform, Operator, Client, Game, Status, Description, RoundID, Timestamp
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			TransactionID, SessionID, Type, Amount, Currency, Platform, Operator, Client, Game, Status, Description, RoundID, Timestamp
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING TransactionID
 	`
 
-	var transactionID int
+	var transactionID string
 	err := pc.DB.QueryRow(
 		query,
+		transaction.ID,
 		transaction.SessionID,
 		transaction.Type,
 		transaction.Amount,
@@ -97,7 +98,7 @@ func (pc *PostgresCli) SaveTransaction(transaction models.Transaction) error {
 }
 
 // SaveGame method to save a game to the database
-func (pc *PostgresCli) SaveGame(game models.Game) error {
+func (pc *PostgresCli) SaveGame(game models.Game, reason string) error {
 	// Convert moves to JSONB
 	movesJSON, err := json.Marshal(game.Moves)
 	if err != nil {
@@ -113,13 +114,14 @@ func (pc *PostgresCli) SaveGame(game models.Game) error {
 	// SQL query to insert the game data
 	query := `
 		INSERT INTO games (
-			OperatorName, OperatorGameName, GameName, StartDate, EndDate, Moves, BetAmount, Winner, GamePlayers
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			ID, OperatorName, OperatorGameName, GameName, StartDate, EndDate, Moves, BetAmount, Winner, GamePlayers, WinFactor, NumMoves, GameOverReason
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING id
 	`
-	var gameID int
+	var gameID string
 	err = pc.DB.QueryRow(
 		query,
+		game.ID,
 		game.OperatorIdentifier.OperatorName,
 		game.OperatorIdentifier.OperatorGameName,
 		game.OperatorIdentifier.GameName,
@@ -129,13 +131,16 @@ func (pc *PostgresCli) SaveGame(game models.Game) error {
 		game.BetValue,
 		game.Winner,
 		playersJSON,
+		game.OperatorIdentifier.WinFactor,
+		len(game.Moves),
+		reason,
 	).Scan(&gameID)
 
 	if err != nil {
+		log.Printf("error inserting game: %v", err)
 		return fmt.Errorf("error inserting game: %w", err)
 	}
-
-	log.Printf("Game saved with ID: %d\n", gameID)
+	//log.Printf("Game saved with ID: %d\n", gameID)
 	return nil
 }
 

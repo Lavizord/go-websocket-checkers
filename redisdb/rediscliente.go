@@ -80,11 +80,6 @@ func (r *RedisClient) BLPopGeneric(queue string, timeoutSecond int) ([]string, e
 
 func (rc *RedisClient) PublishPlayerEvent(player *models.Player, message string) error {
 
-	//data, err := json.Marshal(message)
-	//if err != nil {
-	//	return fmt.Errorf("[pkg/redisdb/cliente] - failed to marshal event data: %w", err)
-	//}
-
 	err := rc.Client.Publish(context.Background(), GetPlayerPubSubChannel(*player), message).Err()
 	if err != nil {
 		return fmt.Errorf("[pkg/redisdb/cliente] - failed to publish player event: %w", err)
@@ -123,7 +118,7 @@ func (r *RedisClient) Subscribe(channel string, messageHandler func(string)) {
 	r.mu.Lock()
 	if _, exists := r.Subscriptions[channel]; exists {
 		r.mu.Unlock()
-		fmt.Println("Already subscribed to", channel)
+		log.Println("Already subscribed to", channel)
 		return
 	}
 	pubsub := r.Client.Subscribe(context.Background(), channel)
@@ -148,13 +143,13 @@ func (r *RedisClient) UnsubscribePlayerChannel(player models.Player) {
 		return
 	}
 	delete(r.Subscriptions, channel)
-	log.Printf("[RedisClii] (UnsubscribePlayerChannel) - Deleted subscription of [%d] and [%v]\n", player.Name, channel)
+	//log.Printf("[RedisClii] (UnsubscribePlayerChannel) - Deleted subscription of [%d] and [%v]\n", player.Name, channel)
 	r.mu.Unlock()
 
 	if err := pubsub.Unsubscribe(context.Background(), channel); err != nil {
-		fmt.Println("Error unsubscribing from", channel, ":", err)
+		log.Println("Error unsubscribing from", channel, ":", err)
 	} else {
-		log.Printf("[RedisClii] (UnsubscribePlayerChannel) - Unsubscribe of [%d] and [%v]\n", player.Name, channel)
+		log.Printf("[RedisClii] (UnsubscribePlayerChannel) - Unsubscribe of [%v] and [%v]\n", player.Name, channel)
 	}
 }
 
@@ -163,14 +158,14 @@ func (r *RedisClient) Unsubscribe(channel string) {
 	pubsub, exists := r.Subscriptions[channel]
 	if !exists {
 		r.mu.Unlock()
-		fmt.Println("Not subscribed to", channel)
+		log.Println("Not subscribed to", channel)
 		return
 	}
 	delete(r.Subscriptions, channel)
 	r.mu.Unlock()
 
 	if err := pubsub.Unsubscribe(context.Background(), channel); err != nil {
-		fmt.Println("Error unsubscribing from", channel, ":", err)
+		log.Println("Error unsubscribing from", channel, ":", err)
 	}
 }
 
@@ -183,13 +178,11 @@ func (r *RedisClient) PublishToGamePlayer(player models.GamePlayer, message stri
 
 func (r *RedisClient) RemovePlayerFromQueue(queueName string, player *models.Player) error {
 	ctx := context.Background()
-
 	// Serialize the player to match stored format
 	data, err := json.Marshal(player)
 	if err != nil {
 		return fmt.Errorf("[RedisClient] - failed to serialize player: %v", err)
 	}
-
 	// Remove the exact serialized JSON string from the queue
 	removed, err := r.Client.LRem(ctx, queueName, 1, string(data)).Result()
 	if err != nil {

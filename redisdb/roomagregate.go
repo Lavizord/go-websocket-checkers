@@ -49,7 +49,6 @@ func (r *RedisClient) GetQueueNumberResponse() (*models.QueueNumbersResponse, er
 	var cursor uint64
 	var keys []string
 	var err error
-
 	for {
 		var partialKeys []string
 		partialKeys, cursor, err = r.Client.Scan(context.Background(), cursor, "queue_count:*", 100).Result()
@@ -62,7 +61,6 @@ func (r *RedisClient) GetQueueNumberResponse() (*models.QueueNumbersResponse, er
 		}
 	}
 	playerCount := make([]models.PlayerCountPerBetValue, 0, len(keys))
-
 	// Use MGET for better performance when fetching multiple values
 	if len(keys) > 0 {
 		values, err := r.Client.MGet(context.Background(), keys...).Result()
@@ -75,23 +73,19 @@ func (r *RedisClient) GetQueueNumberResponse() (*models.QueueNumbersResponse, er
 			if len(parts) < 2 {
 				continue // Skip malformed keys
 			}
-
 			aggregateValue, err := strconv.ParseFloat(parts[1], 64)
 			if err != nil {
 				continue // Skip keys with invalid numeric parts
 			}
-
 			// Handle the MGet result which could be nil
 			if values[i] == nil {
 				continue
 			}
-
 			count, err := strconv.ParseInt(values[i].(string), 10, 64)
 			if err != nil {
 				continue // Skip invalid counts
 			}
-			games, _ := r.CountGamesByBetValue(aggregateValue)
-
+			games, _ := r.CountGamesByBetValue(aggregateValue)	// Now we fetch our games.
 			playerCount = append(playerCount, models.PlayerCountPerBetValue{
 				BetValue:    aggregateValue,
 				PlayerCount: count + (games * 2),
@@ -103,7 +97,6 @@ func (r *RedisClient) GetQueueNumberResponse() (*models.QueueNumbersResponse, er
 	sort.Slice(playerCount, func(i, j int) bool {
 		return playerCount[i].PlayerCount > playerCount[j].PlayerCount
 	})
-
 	return &models.QueueNumbersResponse{
 		QueuNumbers: playerCount,
 	}, nil

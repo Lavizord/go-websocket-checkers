@@ -62,7 +62,7 @@ func gameLaunchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Received Game Launch Request: %+v", req)
+	//log.Printf("Received Game Launch Request: %+v", req)
 
 	operator, err := postgresClient.FetchOperator(req.OperatorName, req.GameID)
 	if err != nil {
@@ -104,7 +104,6 @@ func respondWithJSON(w http.ResponseWriter, status int, payload interface{}) {
 func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/gamelaunch", gameLaunchHandler).Methods("POST")
-
 	log.Println("Server started on :8080")
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

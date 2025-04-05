@@ -65,7 +65,7 @@ func processGameCreation() {
 			log.Printf("[%s-%d] - (Process Game Creation) - Unexpected BLPop result: %+v\n", name, pid, roomData)
 			continue
 		}
-		log.Printf("[%s-%d] - (Process Game Creation) - create game!: %+v\n", name, pid, roomData)
+		//log.Printf("[%s-%d] - (Process Game Creation) - create game!: %+v\n", name, pid, roomData)
 
 		var room models.Room
 		err = json.Unmarshal([]byte(roomData[1]), &room) // Extract second element
@@ -93,7 +93,7 @@ func processGameCreation() {
 		redisClient.RemoveRoom(redisdb.GenerateRoomRedisKeyById(room.ID))
 		msg, err := messages.GenerateGameStartMessage(*game)
 
-		log.Printf("[%s-%d] - (Process Game Creation) - Message to publish: %v\n", name, pid, string(msg))
+		//log.Printf("[%s-%d] - (Process Game Creation) - Message to publish: %v\n", name, pid, string(msg))
 		BroadCastToGamePlayers(msg, *game)
 		go startTimer(game) // Start turn timer
 	}
@@ -106,7 +106,7 @@ func processGameMoves() {
 			log.Printf("[%s-%d] - (Process Game Moves) - Error retrieving move data: %v\n", name, pid, err)
 			continue
 		}
-		log.Printf("[%s-%d] - (Process Game Moves) - processing move DATA!: %+v\n", name, pid, moveData)
+		//log.Printf("[%s-%d] - (Process Game Moves) - processing move DATA!: %+v\n", name, pid, moveData)
 
 		// We start by getting our move data, player, game and opponentPlayer.
 		var move models.Move
@@ -130,6 +130,7 @@ func processGameMoves() {
 			continue
 		}
 
+		// TODO: I think there is a trello card with this.
 		valid, err := game.Board.IsValidMove(move)
 		if err != nil {
 			log.Printf("Error: %v", err)
@@ -159,7 +160,7 @@ func processGameMoves() {
 		if err != nil {
 			log.Printf("[%s-%d] - (Process Game Moves) - Failed to generate message: %v\n", name, pid, string(msg))
 		}
-		log.Printf("[%s-%d] - (Process Game Moves) - Message to publish: %v\n", name, pid, string(msg))
+		//log.Printf("[%s-%d] - (Process Game Moves) - Message to publish: %v\n", name, pid, string(msg))
 		opponent, _ := game.GetOpponentGamePlayer(move.PlayerID)
 		redisClient.PublishToGamePlayer(*opponent, string(msg))
 
@@ -198,7 +199,7 @@ func processLeaveGame() {
 			log.Printf("[%s-%d] - (Process Leave Game) - Error retrieving player data from leave game queue: %v\n", name, pid, err)
 			continue
 		}
-		log.Printf("[%s-%d] - Processing the leave game: %+v\n", name, pid, playerData)
+		//log.Printf("[%s-%d] - Processing the leave game: %+v\n", name, pid, playerData)
 		playerData, err = redisClient.GetPlayer(playerData.ID)
 		if err != nil {
 			log.Printf("[%s-%d] - (Process Leave Game) - Error re-fetching player data.: %v\n", name, pid, err)
@@ -224,7 +225,7 @@ func processDisconnectFromGame() {
 			continue
 		}
 		//playerData, err = redisClient.GetPlayer(playerData.ID)	// We cant do the get player, because it was already removed...
-		log.Printf("[%s-%d] - Processing the disconnect from game: %+v\n", name, pid, playerData)
+		//log.Printf("[%s-%d] - Processing the disconnect from game: %+v\n", name, pid, playerData)
 		game, err := redisClient.GetGame(playerData.GameID)
 		if err != nil {
 			log.Printf("[%s-%d] - Error retrieving Game:%v\n", name, pid, err)
@@ -328,11 +329,9 @@ func startResetEveryTurnTimer(game *models.Game) {
 			break
 		}
 	}
-	activePlayer := game.Players[activePlayerIndex]
-
+	//activePlayer := game.Players[activePlayerIndex]	// This was used in the log prints.
 	// Initialize the timer for the active player
 	timer := baseTimer
-
 	for {
 		select {
 		case <-ticker.C:
@@ -350,23 +349,21 @@ func startResetEveryTurnTimer(game *models.Game) {
 			// Check if the timer has expired
 			if activePlayerTimer <= 0 {
 				handleTurnChange(game)
-				log.Printf("Turn timer expired for player %s in game %s. Switching turns.\n", activePlayer.ID, game.ID)
+				//log.Printf("Turn timer expired for player %s in game %s. Switching turns.\n", activePlayer.ID, game.ID)
 			}
 
 		case msg := <-pubsub.Channel():
 			switch msg.Channel {
 			case stopChannel:
-				log.Printf("Timer stopped for game %s\n", game.ID)
+				//log.Printf("Timer stopped for game %s\n", game.ID)
 				return // Exit the function, stopping the timer
 
 			case switchChannel:
 				// Switch the active player when a move is made
 				activePlayerIndex = 1 - activePlayerIndex // Toggle between 0 and 1
-				activePlayer = game.Players[activePlayerIndex]
-
-				// Reset the timer for the new active player
-				timer = baseTimer
-				log.Printf("Switched active player to %s in game %s. Timer reset to %d seconds.\n", activePlayer.ID, game.ID, timer)
+				//activePlayer = game.Players[activePlayerIndex] 	// This was used in the log prints.
+				timer = baseTimer // Reset the timer for the new active player
+				//log.Printf("Switched active player to %s in game %s. Timer reset to %d seconds.\n", activePlayer.ID, game.ID, timer)
 			}
 		}
 	}
@@ -417,7 +414,7 @@ func startCumulativeTimer(game *models.Game) {
 			if activePlayerTimer <= 0 {
 				// The other player wins
 				winner := game.Players[1-activePlayerIndex].ID
-				log.Printf("Cumulative timer expired for player %s in game %s. Player %s wins.\n", activePlayer.ID, game.ID, winner)
+				//log.Printf("Cumulative timer expired for player %s in game %s. Player %s wins.\n", activePlayer.ID, game.ID, winner)
 				handleGameEnd(*game, "timeout", winner)
 				return
 			}
@@ -425,21 +422,21 @@ func startCumulativeTimer(game *models.Game) {
 		case msg := <-pubsub.Channel():
 			switch msg.Channel {
 			case stopChannel:
-				log.Printf("Timer stopped for game %s\n", game.ID)
+				//log.Printf("Timer stopped for game %s\n", game.ID)
 				return // Exit the function, stopping the timer
 
 			case switchChannel:
 				// Switch the active player when a switch is sent
 				activePlayerIndex = 1 - activePlayerIndex // Toggle between 0 and 1
 				activePlayer = game.Players[activePlayerIndex]
-				log.Printf("Switched active player to %s in game %s\n", activePlayer.ID, game.ID)
+				//log.Printf("Switched active player to %s in game %s\n", activePlayer.ID, game.ID)
 			}
 		}
 	}
 }
 
 func handleGameEnd(game models.Game, reason string, winnerID string) {
-	fmt.Printf("Handling Game End for game [%v] - reason: [%v]", game.ID, reason)
+	//log.Printf("Handling Game End for game [%v] - reason: [%v]", game.ID, reason)
 	var winAmount int64 = 0
 	// if the game is over, lets stop the timers.
 	publishStopToTimerChannel(game.ID)
@@ -462,7 +459,7 @@ func handleGameEnd(game models.Game, reason string, winnerID string) {
 			log.Printf("[RoomWorker-%d] - Error handleGameEnd fetching player1 sessionID:%s\n", pid, err)
 			return
 		}
-		log.Printf("[RoomWorker-%d] - Session extract ID, before posting bet :%s\n", pid, err)
+		//log.Printf("[RoomWorker-%d] - Session extract ID, before posting bet :%s\n", pid, err)
 		var newBalance int64
 		newBalance, winAmount, err = module.HandlePostWin(postgresClient, redisClient, *session, int64(game.BetValue*100), game.ID)
 		if err != nil {
@@ -502,9 +499,8 @@ func handleGameEnd(game models.Game, reason string, winnerID string) {
 	} else {
 		log.Printf("[%s-%d] - (Handle Game Over) - Removed game!: %v\n", name, pid, err)
 	}
-
 	// We then save the game to POSTGRES.
-	postgresClient.SaveGame(game)
+	postgresClient.SaveGame(game, reason)
 	cleanUpGameDisconnectedPlayers(game)
 }
 

@@ -39,5 +39,5 @@ var validCommands = map[string]CommandInfo{
 	"turn_switch":                {Type: ServerCommand}, // Sent when the server detects a turn switch.
 	"balance_update":             {Type: ServerCommand}, // Sent when there is a change to a players money.
 
-	"game_info": {Type: BroadcastCommand}, // Sent with generic game info to feed the clientes. TODO: REWORK!
+	"game_info": {Type: BroadcastCommand}, // Sent with generic game info to feed the clientes.
 }

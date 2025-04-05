@@ -25,12 +25,14 @@ type GameConnectedMessage struct {
 	Status     string  `json:"status"`
 }
 
-// This one missed the json code, the FE is already working wth this... dont CHANGE
+// This one missed the json code, the FE is already working wth this... dont CHANGE the ones that dont have it.
 type GameStartMessage struct {
+	GameID 			string `json:"game_id"` 
 	Board           map[string]*models.Piece
-	MaxTimer        int `json:"max_timer"`
+	MaxTimer        int 	`json:"max_timer"`
 	CurrentPlayerID string
 	GamePlayers     []GamePlayerResponse
+	WinFactor		float64 `json:"win_factor"`
 }
 
 type GameUpdatetMessage struct {
@@ -53,8 +55,8 @@ type GameOver struct {
 }
 
 type GenericMessage struct{
-	MessageType string `json:message_type`
-	Message string `json:message`
+	MessageType string `json:"message_type"`
+	Message string `json:"message"`
 }
 
 func EncodeMessage[T any](command string, value T) ([]byte, error) {
@@ -128,7 +130,7 @@ func ParseMessage(msgBytes []byte) (*Message[json.RawMessage], error) {
 		if err := json.Unmarshal(msg.Value, &queueNumbersResponse); err != nil {
 			return nil, fmt.Errorf("invalid value format for game_info: %w", err)
 		}
-		log.Printf("[Message Parser] Parsed game_info: %+v\n", queueNumbersResponse)
+		//log.Printf("[Message Parser] Parsed game_info: %+v\n", queueNumbersResponse)
 	}
 
 	return msg, nil
@@ -211,10 +213,12 @@ func ConvertGamePlayersToResponse(players []models.GamePlayer) []GamePlayerRespo
 
 func GenerateGameStartMessage(game models.Game) ([]byte, error) {
 	gamestart := GameStartMessage{
+		GameID: game.ID,
 		Board:           game.Board.Grid,
 		MaxTimer:        game.Players[0].Timer,
 		CurrentPlayerID: game.CurrentPlayerID,
 		GamePlayers:      ConvertGamePlayersToResponse(game.Players),
+		WinFactor: game.OperatorIdentifier.WinFactor,
 	}
 	return NewMessage("game_start", gamestart)
 }
@@ -241,7 +245,6 @@ func GenerateGameOverMessage(reason string, game models.Game, winnings int64) ([
 	winner, err := game.GetGamePlayer(game.Winner)
 	if err != nil {
 		log.Printf("Error retrieving game winner player: %v\n", err)
-
 	}
 
 	gameover := GameOver{

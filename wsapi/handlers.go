@@ -23,7 +23,7 @@ func handleMessages(player *models.Player) {
 		// Process the received message (expecting JSON), this will read the command but leave the value.
 		message, err := messages.ParseMessage(msg)
 		if err != nil {
-			msg, _ = messages.GenerateGenericMessage("error", "Invalid message format." + err.Error())
+			msg, _ = messages.GenerateGenericMessage("error", "Invalid message format."+err.Error())
 			player.WriteChan <- msg
 			continue
 		}
@@ -93,7 +93,7 @@ func handleLeaveQueue(player *models.Player) {
 	// we update out player status., send a confirmation message back to the player
 	m, err := messages.GenerateQueueConfirmationMessage(false)
 	if err != nil {
-		msg, _ := messages.GenerateGenericMessage("error", "Error generating queue confirmation false:" + err.Error())
+		msg, _ := messages.GenerateGenericMessage("error", "Error generating queue confirmation false:"+err.Error())
 		log.Println("Error generating queue confirmation false:", err)
 		player.WriteChan <- msg
 		return
@@ -127,14 +127,14 @@ func handleReadyQueue(msg *messages.Message[json.RawMessage], player *models.Pla
 	err := redisClient.UpdatePlayer(player)
 	if err != nil {
 		log.Printf("Error updating player to Redis: %v\n", err)
-		msgBytes, _ := messages.GenerateGenericMessage("error", "Error Updating player: " + err.Error())
+		msgBytes, _ := messages.GenerateGenericMessage("error", "Error Updating player: "+err.Error())
 		player.WriteChan <- msgBytes
 		return
 	}
-	err = redisClient.RPush("ready_queue", player) 	// now we tell roomworker to process this player ready.
+	err = redisClient.RPush("ready_queue", player) // now we tell roomworker to process this player ready.
 	if err != nil {
 		log.Printf("Error pushing player to Redis ready queue: %v\n", err)
-		msgBytes, _ := messages.GenerateGenericMessage("error", "Pushing player to queue: " + err.Error())
+		msgBytes, _ := messages.GenerateGenericMessage("error", "Pushing player to queue: "+err.Error())
 		player.WriteChan <- msgBytes
 		return
 	}

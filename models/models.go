@@ -1,7 +1,7 @@
 package models
 
 import (
-	"fmt"
+	"log"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -27,20 +27,20 @@ type Session struct {
 func (s *Session) IsTokenExpired() bool {
 	token, _, err := new(jwt.Parser).ParseUnverified(s.Token, jwt.MapClaims{})
 	if err != nil {
-		fmt.Println("Error parsing token:", err)
+		log.Println("Error parsing token:", err)
 		return true // Assume expired if we can't parse
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		fmt.Println("Invalid token claims")
+		log.Println("Invalid token claims")
 		return true
 	}
 
 	// Extract expiration time (exp)
 	expFloat, ok := claims["exp"].(float64)
 	if !ok {
-		fmt.Println("Expiration claim missing")
+		log.Println("Expiration claim missing")
 		return true
 	}
 
@@ -68,7 +68,7 @@ type OperatorIdentifier struct {
 	OperatorName     string  `json:"operator_name"`
 	OperatorGameName string  `json:"operator_game_name"`
 	GameName         string  `json:"game_name"`
-	WinFactor        float64 `json:`
+	WinFactor        float64 `json:"win_factor"`
 }
 
 type PlayerCountPerBetValue struct {

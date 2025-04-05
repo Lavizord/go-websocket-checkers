@@ -12,7 +12,7 @@ import (
 type Piece struct {
 	Type     string `json:"type"`
 	PlayerID string `json:"player_id"`
-	IsKinged bool `json:"is_kinged"`
+	IsKinged bool   `json:"is_kinged"`
 	PieceID  string `json:"piece_id"`
 }
 
@@ -25,24 +25,24 @@ type GamePlayer struct {
 	ID        string `json:"id"`
 	Token     string `json:"token"`
 	Name      string `json:"name"`
-	Timer	  int	 `json:"timer"` 		
+	Timer     int    `json:"timer"`
 	Color     string `json:"color"`
 	SessionID string `json:"session_id"`
 	NumPieces int    `json:"num_pieces"`
 }
 
 type Game struct {
-	ID              string       `json:"id"`
-	Board           Board        `json:"board"`
-	Players         []GamePlayer `json:"players"`
-	CurrentPlayerID string       `json:"current_player_id"`
-	Turn            int          `json:"turn"`
-	Moves           []Move	     `json:"moves"`
-	StartTime       time.Time    `json:"start_time"`
-	EndTime         time.Time    `json:"end_time"`
-	Winner          string       `json:"winner"`
-	BetValue        float64      `json:"bet_value"` // Bet amount for the game
-	TimerSetting 	string		 `json:"timer_settings"`
+	ID                 string             `json:"id"`
+	Board              Board              `json:"board"`
+	Players            []GamePlayer       `json:"players"`
+	CurrentPlayerID    string             `json:"current_player_id"`
+	Turn               int                `json:"turn"`
+	Moves              []Move             `json:"moves"`
+	StartTime          time.Time          `json:"start_time"`
+	EndTime            time.Time          `json:"end_time"`
+	Winner             string             `json:"winner"`
+	BetValue           float64            `json:"bet_value"` // Bet amount for the game
+	TimerSetting       string             `json:"timer_settings"`
 	OperatorIdentifier OperatorIdentifier `json:"operator_identifier"`
 }
 
@@ -62,7 +62,7 @@ func MapPlayerToGamePlayer(player Player) GamePlayer {
 		Name:      player.Name,
 		Token:     player.Token,
 		SessionID: player.SessionID,
-		Timer: 0,
+		Timer:     0,
 	}
 }
 
@@ -83,18 +83,18 @@ func (r *Room) NewGame() *Game {
 	whiteID, _ := r.GetOpponentPlayerID(r.CurrentPlayerID)
 
 	game := Game{
-		ID:              r.ID,
-		Board:           *NewBoard(r.CurrentPlayerID, whiteID, "std-game"),
+		ID:    r.ID,
+		Board: *NewBoard(r.CurrentPlayerID, whiteID, "std-game"),
 		//Board:           *NewBoard(r.CurrentPlayerID, whiteID, "two-pieces-endgame"),
 		//Board:           *NewBoard(r.CurrentPlayerID, whiteID, "multiple-capture"),
-		Players:         mapPlayers(r),
-		CurrentPlayerID: r.CurrentPlayerID,
-		Turn:            0,
-		Moves:           []Move{},
-		StartTime:       time.Now(),
-		Winner:          "",
-		BetValue:        r.BetValue,
-		TimerSetting: config.Cfg.Services["gameworker"].TimerSetting,
+		Players:            mapPlayers(r),
+		CurrentPlayerID:    r.CurrentPlayerID,
+		Turn:               0,
+		Moves:              []Move{},
+		StartTime:          time.Now(),
+		Winner:             "",
+		BetValue:           r.BetValue,
+		TimerSetting:       config.Cfg.Services["gameworker"].TimerSetting,
 		OperatorIdentifier: r.OperatorIdentifier,
 	}
 
@@ -111,17 +111,17 @@ func (r *Room) NewGame() *Game {
 }
 
 func (g *Game) SetUpPlayerTimers() {
-	
+
 	switch g.TimerSetting {
 	case "reset":
 		g.Players[0].Timer = config.Cfg.Services["gameworker"].Timer
 		g.Players[1].Timer = g.Players[0].Timer
-		 
+
 	case "cumulative":
-		calculatedTimer := config.Cfg.Services["gameworker"].Timer * config.Cfg.Services["gameworker"].PiecesInMatch 
+		calculatedTimer := config.Cfg.Services["gameworker"].Timer * config.Cfg.Services["gameworker"].PiecesInMatch
 		g.Players[0].Timer = calculatedTimer + 1
 		g.Players[1].Timer = g.Players[0].Timer
-		
+
 	}
 }
 
@@ -187,7 +187,6 @@ func (g *Game) NextPlayer() {
 	nextPlayerId, err := g.GetOpponentPlayerID(g.CurrentPlayerID)
 	if err != nil {
 		log.Printf("Error NextPlayer getting opponent ID: %v\n", err)
-
 	}
 	g.CurrentPlayerID = nextPlayerId
 	g.Turn += 1

@@ -188,25 +188,22 @@ func (b *Board) CanPieceCapture(pos string) bool {
 		landRow := fromRow + rune(2*dir.rowDelta)
 		landCol := fromCol + 2*dir.colDelta
 		landPos := fmt.Sprintf("%c%d", landRow, landCol)
-		log.Printf("(CanPieceCapture) - Checking landPos [%s]\n", landPos)
+		//log.Printf("(CanPieceCapture) - Checking landPos [%s]\n", landPos)
 
 		// Ensure middle square has an opponent piece
 		midPiece, midExists := b.Grid[midPos]
 		if !midExists || midPiece == nil || midPiece.PlayerID == piece.PlayerID {
-			log.Printf("(CanPieceCapture) - Middle piece doesn't exist or is not an opponent!\n")
+			//log.Printf("(CanPieceCapture) - Middle piece doesn't exist or is not an opponent!\n")
 			continue // No opponent to jump over
 		}
-
-		log.Printf("(CanPieceCapture) - Middle piece exists and is an opponent!\n")
-
+		//log.Printf("(CanPieceCapture) - Middle piece exists and is an opponent!\n")
 		// Ensure landing square is empty
 		if destPiece, destExists := b.Grid[landPos]; destExists && destPiece == nil {
-			log.Printf("(CanPieceCapture) - Valid capture move found\n")
+			//log.Printf("(CanPieceCapture) - Valid capture move found\n")
 			return true // Valid capture move found!
 		}
 	}
-
-	log.Printf("(CanPieceCapture) - No captures available\n")
+	//log.Printf("(CanPieceCapture) - No captures available\n")
 	return false // No captures available
 }
 
@@ -228,9 +225,9 @@ func (b *Board) CanPieceCaptureNEW(pos string) bool {
 			{-1, 1},  // Diagonal right (up)
 			{-1, -1}, // Diagonal left (up)
 		}
-		log.Printf("(CanPieceCapture) - Piece is king, multiple directions.")
+		//log.Printf("(CanPieceCapture) - Piece is king, multiple directions.")
 	} else {
-		log.Printf("(CanPieceCapture) - Piece is not king, single direction.")
+		//log.Printf("(CanPieceCapture) - Piece is not king, single direction.")
 		// Normal pieces can only move forward
 		var direction = GetPieceDirection(*piece)
 		directions = []struct{ rowDelta, colDelta int }{
@@ -256,25 +253,22 @@ func (b *Board) CanPieceCaptureNEW(pos string) bool {
 		landRow := fromRow + rune(2*dir.rowDelta)
 		landCol := fromCol + 2*dir.colDelta
 		landPos := fmt.Sprintf("%c%d", landRow, landCol)
-		log.Printf("(CanPieceCapture) - Checking landPos [%s]\n", landPos)
-
+		//log.Printf("(CanPieceCapture) - Checking landPos [%s]\n", landPos)
 		// Ensure middle square has an opponent piece
 		midPiece, midExists := b.Grid[midPos]
 		if !midExists || midPiece == nil || midPiece.PlayerID == piece.PlayerID {
-			log.Printf("(CanPieceCapture) - Middle piece doesn't exist or is not an opponent!\n")
+			//log.Printf("(CanPieceCapture) - Middle piece doesn't exist or is not an opponent!\n")
 			continue // No opponent to jump over
 		}
-
-		log.Printf("(CanPieceCapture) - Middle piece exists and is an opponent!\n")
-
+		//log.Printf("(CanPieceCapture) - Middle piece exists and is an opponent!\n")
 		// Ensure landing square is empty
 		if destPiece, destExists := b.Grid[landPos]; destExists && destPiece == nil {
 			log.Printf("(CanPieceCapture) - Valid capture move found\n")
-			return true // Valid capture move found!
+			return true 	// Valid capture move found!
 		}
 	}
 	log.Printf("(CanPieceCapture) - No captures available\n")
-	return false // No captures available
+	return false 			// No captures available
 }
 
 
@@ -299,7 +293,6 @@ func (b *Board) WasPieceKinged(pos string, piece Piece) bool {
 }
 
 func GetPieceDirection(piece Piece) int {
-	// Determine the direction based on the piece type
 	if piece.Type == "w" {
 		return -1 // White pieces move "up" (decreasing row)
 	} else {
@@ -313,7 +306,6 @@ func parsePosition(pos string) (rune, int, error) {
 	if len(pos) != 2 {
 		return 0, 0, fmt.Errorf("(Parse Position) - invalid position format: must be 2 characters (e.g., 'A3')")
 	}
-
 	row := rune(pos[0]) // Convert the first character to a rune (e.g., 'A')
 	col := int(pos[1] - '0') // Convert the second character to an integer (e.g., '3' → 3)
 
@@ -321,13 +313,10 @@ func parsePosition(pos string) (rune, int, error) {
 	if row < 'A' || row > 'H' || col < 1 || col > 8 {
 		return 0, 0, fmt.Errorf("(Parse Position) - position is out of bounds: must be between A1 and H8")
 	}
-
 	return row, col, nil
 }
 
-
 func (b *Board) IsValidMove(move Move) (bool, error) {
-	// Check if the piece exists on the board
 	piece, exists := b.Grid[move.From]
 	if !exists || piece == nil {
 		return false, fmt.Errorf("(isValidMove) - piece does not exist at the source square")
@@ -340,7 +329,6 @@ func (b *Board) IsValidMove(move Move) (bool, error) {
 	if piece.IsKinged {
 		return false, fmt.Errorf("(isValidMove) - piece is kinged, this function only checks regular pieces")
 	}
-
 	// Parse the source and destination positions
 	fromRow, fromCol, err := parsePosition(move.From)
 	if err != nil {
@@ -350,16 +338,13 @@ func (b *Board) IsValidMove(move Move) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("(isValidMove) - invalid destination position: %v", err)
 	}
-
 	// Check if the destination square is empty
 	if _, exists := b.Grid[move.To]; exists {
 		return false, fmt.Errorf("(isValidMove) - destination square is not empty")
 	}
-
 	// Calculate the difference in rows and columns
 	deltaRow := int(toRow - fromRow)
 	deltaCol := toCol - fromCol
-
 	// Skip direction validation if the piece is kinged
 	if !piece.IsKinged {
 		direction := GetPieceDirection(*piece)
@@ -367,7 +352,6 @@ func (b *Board) IsValidMove(move Move) (bool, error) {
 			return false, fmt.Errorf("(isValidMove) - move is not in the correct direction for the piece type")
 		}
 	}
-
 	// Check if the move is diagonal
 	if abs(deltaCol) != 1 || abs(deltaRow) != 1 {
 		// If it's not a single diagonal move, check if it's a capture

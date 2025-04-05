@@ -18,7 +18,7 @@ import (
 		"roomworker": {},
 		"gameworker": {
 			"timer": 15,
-			"timer_settings": "reset", 	// Options: "reset" or "cumulative"
+			"timer_settings": "reset", 			// Options: "reset" or "cumulative"
 			"pieces_in_match": 10 				// Number of pieces in the match
 		}
 	}
@@ -53,7 +53,7 @@ func LoadConfig() {
 	if configPath == "" {
 		log.Fatal("[config.go] - CONFIG_PATH not set")
 	}
-	log.Println("[config.go] - Config path is:", configPath)
+	//log.Println("[config.go] - Config path is:", configPath)
 
 	file, err := os.Open(configPath)
 	if err != nil {
@@ -65,5 +65,5 @@ func LoadConfig() {
 	if err := decoder.Decode(&Cfg); err != nil {
 		log.Fatalf("[config.go] - Error decoding JSON: %v", err)
 	}
-	log.Printf("[config.go] - Config loaded: %+v", Cfg)
+	//log.Printf("[config.go] - Config loaded: %+v", Cfg)
 }
