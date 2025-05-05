@@ -1,4 +1,4 @@
-module checkers-server
+module github.com/Lavizord/checkers-server
 
 go 1.23.6
 

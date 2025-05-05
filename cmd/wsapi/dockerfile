@@ -1,0 +1,18 @@
+FROM golang:1.23.6-alpine AS builder
+WORKDIR /app/
+
+COPY ../../go.mod ../../go.sum ./
+RUN go mod download
+
+COPY ../../ ./
+WORKDIR /app/cmd/wsapi
+RUN go build -o wsapi .
+
+FROM alpine:latest
+WORKDIR /root/
+COPY --from=builder /app/cmd/wsapi/wsapi ./
+COPY --from=builder /app/internal/config/config.json ./config/config.json
+
+ENV CONFIG_PATH=/root/config/config.json
+EXPOSE 80
+ENTRYPOINT ["./wsapi"]
