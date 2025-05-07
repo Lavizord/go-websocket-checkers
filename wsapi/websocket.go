@@ -1,7 +1,6 @@
 package wsapi
 
 import (
-	"checkers-server/config"
 	"checkers-server/interfaces"
 	"checkers-server/messages"
 	"checkers-server/models"
@@ -32,17 +31,6 @@ const (
 	pongWait     = 3 * time.Second
 	pingInterval = 2 * time.Second // must be < pongWait
 )
-
-func init() {
-	config.LoadConfig()
-	redisAddr := config.Cfg.Redis.Addr
-	client, err := redisdb.NewRedisClient(redisAddr)
-	if err != nil {
-		log.Fatalf("[Redis] Error initializing Redis client: %v", err)
-	}
-	RedisClient = client
-	go subscribeToBroadcastChannel() // This is a global channel. WSAPI will send the messages from this channel to all active ws connections
-}
 
 func HandleConnection(w http.ResponseWriter, r *http.Request) {
 
@@ -167,7 +155,7 @@ func subscribeToPlayerChannel(player *models.Player, ready chan bool) {
 	ready <- true // Notify that the subscription is ready
 }
 
-func subscribeToBroadcastChannel() {
+func SubscribeToBroadcastChannel() {
 	RedisClient.Subscribe("game_info", func(message string) {
 		//fmt.Println("[wsapi] - Received BROADCAST message:", message)
 		msg, err := messages.ParseMessage([]byte(message))

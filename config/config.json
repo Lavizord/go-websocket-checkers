@@ -1,21 +1,25 @@
 {
   "redis": {
     "addr": "redis:6379",
-    "db": 0
+    "db": 0,
+    "user": "default",
+    "password": ""
   },
   "postgres": {
     "user": "sa",
     "password": "checkersdb",
     "dbname": "checkers",
     "host": "postgres",
-    "port": "5432"
+    "port": "5432",
+    "ssl": false
   },
   "email": {
     "email":"retromindgames@gmail.com", 
     "password":"ftcg wmea grde hdge"
   },
   "services": {
-    "wsapi": { "ports": [80, 443] },
+    "wsapi": { "ports": [80] },
+    "restapi": { "ports": [80] },
     "pstatusworker": {},
     "roomworker": { "timer" : 1},
     "gameworker": {

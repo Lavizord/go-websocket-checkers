@@ -19,7 +19,7 @@ services:
       context: .
       dockerfile: wsapi.dockerfile
     expose:
-      - "80"  # Expose port 80 internally
+      - "80" 
     environment:
       - CONFIG_PATH=/root/config/config.json
     depends_on:
@@ -33,7 +33,7 @@ services:
       context: .
       dockerfile: restapiworker.dockerfile
     expose:
-      - "8080"  # Expose port 8080 internally
+      - "80" 
     networks:
       - app-network
     depends_on:
