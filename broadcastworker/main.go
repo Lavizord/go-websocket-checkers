@@ -17,8 +17,8 @@ var redisClient *redisdb.RedisClient
 func init() {
 	config.LoadConfig()
 	pid = os.Getpid()
-	redisAddr := config.Cfg.Redis.Addr
-	client, err := redisdb.NewRedisClient(redisAddr)
+	redisConData := config.Cfg.Redis
+	client, err := redisdb.NewRedisClient(redisConData.Addr, redisConData.User, redisConData.Password)
 	if err != nil {
 		log.Fatalf("[%s][BroadcastWorker-%d][Redis] Error initializing Redis client: %v", name, pid, err)
 	}

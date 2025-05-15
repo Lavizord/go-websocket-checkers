@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/Lavizord/checkers-server/config"
 	"github.com/Lavizord/checkers-server/interfaces"
@@ -16,17 +15,15 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var pid int
 var postgresClient *postgrescli.PostgresCli
 var redisClient *redisdb.RedisClient
-var name = "restapiworker"
+var name = "restapi"
 
 func init() {
-	pid = os.Getpid()
 	config.LoadConfig()
 
-	redisAddr := config.Cfg.Redis.Addr
-	client, err := redisdb.NewRedisClient(redisAddr)
+	redisConData := config.Cfg.Redis
+	client, err := redisdb.NewRedisClient(redisConData.Addr, redisConData.User, redisConData.Password)
 	if err != nil {
 		log.Fatalf("[%s-Redis] Error initializing Redis client: %v\n", name, err)
 	}
@@ -38,9 +35,10 @@ func init() {
 		config.Cfg.Postgres.DBName,
 		config.Cfg.Postgres.Host,
 		config.Cfg.Postgres.Port,
+		config.Cfg.Postgres.Ssl,
 	)
 	if err != nil {
-		log.Fatalf("[%PostgreSQL] Error initializing POSTGRES client: %v\n", err)
+		log.Fatalf("[PostgreSQL] Error initializing POSTGRES client: %v\n", err)
 	}
 	postgresClient = sqlcliente
 }
@@ -102,6 +100,16 @@ func respondWithJSON(w http.ResponseWriter, status int, payload interface{}) {
 	json.NewEncoder(w).Encode(payload)
 }
 
+func registerRoutes(r *mux.Router) {
+	r.HandleFunc("/api/gamelaunch", gameLaunchHandler).Methods("POST")
+
+	healthHandler := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}
+	r.HandleFunc("/health", healthHandler).Methods("GET")
+	r.HandleFunc("/api/health", healthHandler).Methods("GET")
+}
+
 func main() {
 	defer func() {
 		if redisClient != nil {
@@ -110,10 +118,11 @@ func main() {
 	}()
 
 	router := mux.NewRouter()
-	router.HandleFunc("/gamelaunch", gameLaunchHandler).Methods("POST")
-	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}).Methods("GET")
-	log.Println("Server started on :8080")
-	log.Fatal(http.ListenAndServe(":8080", router))
+	registerRoutes(router)
+
+	port := config.FirstPortFromConfig(name)
+	addrs := fmt.Sprintf(":%d", port)
+
+	log.Printf("[API] - HTTP server starting on %d...", port)
+	log.Fatal(http.ListenAndServe(addrs, router))
 }

@@ -6,36 +6,51 @@ on:
   
 jobs:
   build_and_push:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    env:
+      ECR_REGISTRY: 923500641637.dkr.ecr.eu-central-1.amazonaws.com/retromindgames/checkers
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Set up AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
+
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set default.region eu-central-1
 
       - name: Login to ECR
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Build and push all images
         run: |
-          ECR_REGISTRY=923500641637.dkr.ecr.eu-central-1.amazonaws.com
+          aws ecr get-login-password | docker login --username AWS --password-stdin 923500641637.dkr.ecr.eu-central-1.amazonaws.com
 
-          declare -A IMAGES=(
-            ["wsapi"]="wsapi.dockerfile"
-            ["restapi"]="restapiworker.dockerfile"
-            ["pstatus"]="pstatusworker.dockerfile"
-            ["room"]="roomworker.dockerfile"
-            ["game"]="gameworker.dockerfile"
-            ["broadcast"]="broadcastworker.dockerfile"
-          )
+      - name: Build and push wsapi image
+        run: |
+          docker build -f serverws.dockerfile -t $ECR_REGISTRY:wsapi .
+          docker push $ECR_REGISTRY:wsapi
 
-          for name in "${!IMAGES[@]}"; do
-            docker build -f ${IMAGES[$name]} -t $ECR_REGISTRY/$name .
-            docker push $ECR_REGISTRY/$name:latest
-          done
+      - name: Build and push restapi image
+        run: |
+          docker build -f restapiworker.dockerfile -t $ECR_REGISTRY:restapi .
+          docker push $ECR_REGISTRY:restapi
+
+      - name: Build and push room image
+        run: |
+          docker build -f roomworker.dockerfile -t $ECR_REGISTRY:room .
+          docker push $ECR_REGISTRY:room
+
+      - name: Build and push game image
+        run: |
+          docker build -f gameworker.dockerfile -t $ECR_REGISTRY:game .
+          docker push $ECR_REGISTRY:game
+
+      - name: Build and push broadcast image
+        run: |
+          docker build -f broadcastworker.dockerfile -t $ECR_REGISTRY:broadcast .
+          docker push $ECR_REGISTRY:broadcast
+

@@ -1,0 +1,4 @@
+PGHOST='ep-dry-mountain-a230vjyd-pooler.eu-central-1.aws.neon.tech'
+PGDATABASE='checkers-db'
+PGUSER='neondb_owner'
+PGPASSWORD='npg_NvBRQsd1XtS7'

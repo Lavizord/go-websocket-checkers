@@ -24,8 +24,8 @@ var name = "roomworker"
 func init() {
 	pid = os.Getpid()
 	config.LoadConfig()
-	redisAddr := config.Cfg.Redis.Addr
-	client, err := redisdb.NewRedisClient(redisAddr)
+	redisConData := config.Cfg.Redis
+	client, err := redisdb.NewRedisClient(redisConData.Addr, redisConData.User, redisConData.Password)
 	if err != nil {
 		log.Fatalf("[Redis] Error initializing Redis client: %v\n", err)
 	}
@@ -37,6 +37,7 @@ func init() {
 		config.Cfg.Postgres.DBName,
 		config.Cfg.Postgres.Host,
 		config.Cfg.Postgres.Port,
+		config.Cfg.Postgres.Ssl,
 	)
 	if err != nil {
 		log.Fatalf("[%s-PostgreSQL] Error initializing POSTGRES client: %v\n", name, err)

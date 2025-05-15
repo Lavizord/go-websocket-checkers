@@ -26,8 +26,8 @@ type Hub struct {
 	redis *redisdb.RedisClient
 }
 
-func newHub(redisAddr string) *Hub {
-	redisclient, err := redisdb.NewRedisClient(redisAddr)
+func newHub(addr string, username string, password string) *Hub {
+	redisclient, err := redisdb.NewRedisClient(addr, username, password)
 	if err != nil {
 		log.Fatalf("[Redis] Error initializing Redis client: %v", err)
 	}

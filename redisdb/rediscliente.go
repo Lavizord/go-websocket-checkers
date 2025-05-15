@@ -21,17 +21,32 @@ type RedisClient struct {
 	mu            sync.Mutex
 }
 
-func NewRedisClient(addr string) (*RedisClient, error) {
-	client := redis.NewClient(&redis.Options{
+func NewRedisClient(addr string, username string, password string) (*RedisClient, error) {
+	// Set up Redis client options
+	options := &redis.Options{
 		Addr: addr,
-	})
+	}
 
-	// check connection
+	// If there's a username, set it in the options
+	if username != "" {
+		options.Username = username
+	}
+
+	// If there's a password, set it in the options
+	if password != "" {
+		options.Password = password
+	}
+
+	// Create the Redis client
+	client := redis.NewClient(options)
+
+	// Check the connection
 	ctx := context.Background()
 	_, err := client.Ping(ctx).Result()
 	if err != nil {
 		return nil, fmt.Errorf("[RedisClient] - failed to connect to Redis at %s: %w", addr, err)
 	}
+
 	return &RedisClient{
 		Client:        client,
 		Subscriptions: make(map[string]*redis.PubSub),

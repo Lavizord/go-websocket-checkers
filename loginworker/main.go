@@ -228,6 +228,7 @@ func main() {
 		config.Cfg.Postgres.DBName,
 		config.Cfg.Postgres.Host,
 		config.Cfg.Postgres.Port,
+		config.Cfg.Postgres.Ssl,
 	)
 	if err != nil {
 		log.Fatalf("[%PostgreSQL] Error initializing POSTGRES client: %v\n", err)
@@ -248,8 +249,8 @@ func main() {
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins: []string{
 			"http://localhost:5173", // For local dev (frontend)
-			"https://portal.retromindgames.pt",
-			"http://portal.retromindgames.pt",
+			"https://play.retromindgames.pt",
+			"https://play.retromindgames.pt",
 		},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},

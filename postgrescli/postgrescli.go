@@ -15,24 +15,28 @@ type PostgresCli struct {
 	DB *sql.DB
 }
 
-func NewPostgresCli(user, password, dbname, host, port string) (*PostgresCli, error) {
-	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s sslmode=disable", user, password, dbname, host, port)
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return nil, err
+func NewPostgresCli(user, password, dbname, host, port string, ssl bool) (*PostgresCli, error) {
+	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s",
+		user, password, dbname, host, port)
+
+	if ssl {
+		connStr += " sslmode=require"
+	} else {
+		connStr += " sslmode=disable"
 	}
 
-	// Ping to make sure the connection is valid
-	err = db.Ping()
+	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		db.Close()
-		return nil, err
+		return nil, fmt.Errorf("failed to open database connection: %w", err)
+	}
+
+	if err = db.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	return &PostgresCli{DB: db}, nil
 }
 
-// Close method to close the database connection
 func (pc *PostgresCli) Close() {
 	pc.DB.Close()
 }
@@ -44,7 +48,6 @@ func (pc *PostgresCli) SaveSession(session models.Session) error {
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 
-	// Execute the query
 	_, err := pc.DB.Exec(
 		query,
 		session.ID,
@@ -61,7 +64,7 @@ func (pc *PostgresCli) SaveSession(session models.Session) error {
 		return fmt.Errorf("error inserting session: %w", err)
 	}
 
-	log.Printf("Session saved with ID: %s\n", session.ID)
+	//log.Printf("Session saved with ID: %s\n", session.ID)
 	return nil
 }
 
@@ -95,7 +98,6 @@ func (pc *PostgresCli) SaveTransaction(transaction models.Transaction) error {
 		return fmt.Errorf("error inserting transaction: %w", err)
 	}
 
-	log.Printf("Transaction saved with ID: %d\n", transactionID)
 	return nil
 }
 
