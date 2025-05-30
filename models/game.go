@@ -57,6 +57,10 @@ type Move struct {
 	IsKinged  bool   `json:"is_kinged"`  // Whether the piece was kinged after the move
 }
 
+type GameMovesRequest struct {
+	GameID string `json:"game_id"`
+}
+
 func MapPlayerToGamePlayer(player Player) GamePlayer {
 	return GamePlayer{
 		ID:        player.ID,

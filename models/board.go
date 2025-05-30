@@ -115,7 +115,6 @@ func (b *Board) CanPieceCaptureNEW(pos string) bool {
 
 	// Define the possible capture directions
 	var directions []struct{ rowDelta, colDelta int }
-
 	if piece.IsKinged {
 		// Kings can move in all four diagonal directions
 		directions = []struct{ rowDelta, colDelta int }{
@@ -141,7 +140,9 @@ func (b *Board) CanPieceCaptureNEW(pos string) bool {
 		log.Println(err)
 		return false
 	}
-
+	if piece.IsKinged {
+		return b.canKingCapture(fromRow, fromCol, piece)
+	}
 	for _, dir := range directions {
 		// Compute middle position (opponent's piece)
 		midRow := fromRow + rune(dir.rowDelta)
@@ -168,6 +169,46 @@ func (b *Board) CanPieceCaptureNEW(pos string) bool {
 	}
 	//log.Printf("(CanPieceCapture) - No captures available\n")
 	return false // No captures available
+}
+
+func (b *Board) canKingCapture(fromRow rune, fromCol int, piece *Piece) bool {
+	directions := []struct{ rowDelta, colDelta int }{
+		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
+	}
+
+	for _, dir := range directions {
+		foundEnemy := false
+		row := fromRow + rune(dir.rowDelta)
+		col := fromCol + dir.colDelta
+
+		for isInBounds(row, col) {
+			pos := fmt.Sprintf("%c%d", row, col)
+			target, exists := b.Grid[pos]
+			if !exists {
+				break
+			}
+			if target == nil {
+				if foundEnemy {
+					return true
+				}
+			} else if target.PlayerID != piece.PlayerID {
+				if foundEnemy {
+					break
+				}
+				foundEnemy = true
+			} else {
+				break
+			}
+
+			row += rune(dir.rowDelta)
+			col += dir.colDelta
+		}
+	}
+	return false
+}
+
+func isInBounds(row rune, col int) bool {
+	return row >= 'A' && row <= 'H' && col >= 1 && col <= 8
 }
 
 func (b *Board) WasPieceKinged(pos string, piece Piece) bool {
@@ -342,6 +383,7 @@ func (b *Board) IsValidMoveKing(move Move) (bool, error) {
 		if p.PlayerID == move.PlayerID {
 			return false, fmt.Errorf("(IsValidMoveKing) - path blocked by own piece at %v", square)
 		}
+		// This looked sketchi.
 		if enemySeen {
 			return false, fmt.Errorf("(IsValidMoveKing) - multiple captures not supported in one move")
 		}

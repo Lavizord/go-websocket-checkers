@@ -1,3 +1,5 @@
+import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
+
 export const options = {
   vus: 1,
   //duration: '10s',
@@ -45,7 +47,7 @@ export const payloads = {
     operator_name: 'TestOp',
     gameid: 'damasSokkerDuel',
     language: 'pt',
-    token: Math.random().toString(36).substring(2), // dummy random token. Used with TestOp
+    token: uuidv4(),
   }),
 
   wsMessages: [

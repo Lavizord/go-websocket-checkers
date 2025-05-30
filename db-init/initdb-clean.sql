@@ -21,7 +21,7 @@ BEGIN
             'SokkerDuel',
             'damasSokkerDuel',
             'BatalhaDasDamas',
-            'https://s3.eu-central-1.amazonaws.com/play.retromindgames.pt/games/damasSokkerDuel/index.html',
+            'https://play.retromindgames.pt/games/damasSokkerDuel/index.html',
             'https://tt2.sokkerduel.com',
             0.9
         ),
@@ -29,7 +29,7 @@ BEGIN
             'TestOp',
             'damasSokkerDuel',
             'BatalhaDasDamas',
-            'https://s3.eu-central-1.amazonaws.com/play.retromindgames.pt/games/damasSokkerDuel/index.html',
+            'https://play.retromindgames.pt/games/damasSokkerDuel/index.html',
             '',
             0.9
         );
@@ -79,4 +79,14 @@ CREATE TABLE IF NOT EXISTS transactions (
     Description VARCHAR(600),           
     RoundID UUID,                       
     Timestamp TIMESTAMP  DEFAULT CURRENT_TIMESTAMP  
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    Id UUID PRIMARY KEY,
+    Email VARCHAR(255) UNIQUE NOT NULL,
+    LoginCode VARCHAR(8),
+    CodeExpiresAt TIMESTAMP,
+    UpdatedAt TIMESTAMP DEFAULT NOW(),
+    OperatorName VARCHAR(255),
+    IsActive BOOLEAN DEFAULT TRUE
 );

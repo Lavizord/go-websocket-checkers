@@ -46,8 +46,10 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
+		log.Println("WebSocket request Origin:", origin)
+		return true
 		if prodVenv == "" {
-			return true // allow all if no config path
+			return true
 		}
 		return origin == "http://localhost:8060" || origin == "https://play.retromindgames.pt/"
 	},
@@ -219,7 +221,7 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Now we will create our player, and check if there is any existing player with the same session.
-	player, wasdisconnected, err := CreatePlayer(hub.redis, session)
+	player, wasdisconnectedInGame, wasDisconnectedInQueue, err := CreatePlayer(hub.redis, session)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusConflict)
@@ -269,8 +271,26 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	client.send <- msg
 
 	// Now that our player has subscribbed to our stuff, we will notify the gameworker of the reconnect.
-	if wasdisconnected {
+	if wasdisconnectedInGame {
 		hub.redis.RPush("reconnect_game", player)
+	}
+
+	// The queue handling of a disconnected player also has to be done...
+	// Its separated to try and not break the game reconect.
+	if wasDisconnectedInQueue {
+		hub.redis.DeleteDisconnectedInQueuePlayerData(player.ID)
+		if player.Status == models.StatusInQueue {
+			msg, err := messages.GenerateQueueConfirmationMessage(true)
+			if err != nil {
+				log.Printf("Failed to generate connected when wasDisconnectedInQueue : %v", err)
+				client.CloseConnection()
+				return
+			}
+			client.send <- msg
+		}
+		if player.Status == models.StatusInRoom || player.Status == models.StatusInRoomReady {
+			hub.redis.PublishToRoomPubSub(player.RoomID, "player_reconnect:"+player.ID)
+		}
 	}
 
 }

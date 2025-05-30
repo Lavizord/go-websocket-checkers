@@ -30,7 +30,7 @@ func RouteMessages(message *messages.Message[json.RawMessage], client *Client, r
 		return
 
 	case "leave_room":
-		if client.player.Status != models.StatusInRoom {
+		if client.player.Status != models.StatusInRoom && client.player.Status != models.StatusInRoomReady {
 			msg, _ := messages.GenerateGenericMessage("invalid", "Can't issue a leave room when not in a Room.")
 			client.send <- msg
 			return
@@ -71,7 +71,7 @@ func handleLeaveQueue(client *Client, redis *redisdb.RedisClient) {
 	}
 	client.player.SetStatusOnline()
 	redis.UpdatePlayer(client.player) // This is important, we will only re-add players to a queue that are in queue.
-	redis.UpdatePlayersInQueueSet(client.player.ID, models.StatusOnline)
+	//redis.UpdatePlayersInQueueSet(client.player.ID, models.StatusOnline)
 	queueName := fmt.Sprintf("queue:%f", client.player.SelectedBet)
 	err := redis.RemovePlayerFromQueue(queueName, client.player)
 	if err != nil {
@@ -112,7 +112,7 @@ func handleReadyQueue(msg *messages.Message[json.RawMessage], client *Client, re
 	msgBytes, _ := messages.GenerateGenericMessage("info", "Processing 'ready_queue'")
 	client.send <- msgBytes
 	// we update our player to redis.
-	redis.UpdatePlayersInQueueSet(client.player.ID, client.player.Status)
+	//redis.UpdatePlayersInQueueSet(client.player.ID, client.player.Status)
 	err := redis.UpdatePlayer(client.player)
 	if err != nil {
 		log.Printf("Error updating player to Redis: %v\n", err)
@@ -139,24 +139,25 @@ func handleLeaveRoom(client *Client, redis *redisdb.RedisClient) {
 	msgBytes, _ := messages.GenerateGenericMessage("info", "Processing 'leave_room'")
 	client.send <- msgBytes
 	// we update our player to redis.
-	err := redis.UpdatePlayer(client.player)
-	if err != nil {
-		log.Printf("Error updagint player to Redis on HandleLeaveRoom: %v\n", err)
-		msg, _ := messages.GenerateGenericMessage("error", "error updating player.")
-		client.send <- msg
-		return
-	}
-	err = redis.RPush("leave_room", client.player)
-	if err != nil {
-		log.Printf("Error pushing player to Redis leave_room queue: %v\n", err)
-		msg, _ := messages.GenerateGenericMessage("error", "error leaving room.")
-		client.send <- msg
-		return
-	}
+	//err := redis.UpdatePlayer(client.player)
+	//if err != nil {
+	//	log.Printf("Error updagint player to Redis on HandleLeaveRoom: %v\n", err)
+	//	msg, _ := messages.GenerateGenericMessage("error", "error updating player.")
+	//	client.send <- msg
+	//	return
+	//}
+	redis.PublishToRoomPubSub(client.player.RoomID, "leave_room:"+client.player.ID)
+	//err := redis.RPush("leave_room", client.player)
+	//if err != nil {
+	//	log.Printf("Error pushing player to Redis leave_room queue: %v\n", err)
+	//	msg, _ := messages.GenerateGenericMessage("error", "error leaving room.")
+	//	client.send <- msg
+	//	return
+	//}
 }
 
 func handleLeaveGame(client *Client, redis *redisdb.RedisClient) {
-	msgBytes, _ := messages.GenerateGenericMessage("invalid", "Processing 'leave_game'")
+	msgBytes, _ := messages.GenerateGenericMessage("info", "Processing 'leave_game'")
 	client.send <- msgBytes
 	err := redis.RPush("leave_game", client.player)
 	if err != nil {

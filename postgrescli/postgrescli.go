@@ -7,6 +7,7 @@ import (
 	"log"
 
 	"github.com/Lavizord/checkers-server/models"
+	"github.com/google/uuid"
 
 	_ "github.com/lib/pq"
 )
@@ -146,6 +147,29 @@ func (pc *PostgresCli) SaveGame(game models.Game, reason string) error {
 	}
 	//log.Printf("Game saved with ID: %d\n", gameID)
 	return nil
+}
+
+func (pc *PostgresCli) FetchGameMoves(gameID string) ([]models.Move, error) {
+	query := `SELECT moves FROM games WHERE id = $1`
+	log.Printf("Fetching moves for gameID: %s", gameID) // not [%s]
+	parsedUUID, err := uuid.Parse(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid UUID: %w", err)
+	}
+	log.Printf("Fetching moves for gameID: %s", gameID) // not [%s]
+
+	var movesJSON []byte
+	err = pc.DB.QueryRow(query, parsedUUID).Scan(&movesJSON)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching moves for game %s: %w", gameID, err)
+	}
+
+	var moves []models.Move
+	if err := json.Unmarshal(movesJSON, &moves); err != nil {
+		return nil, fmt.Errorf("error unmarshalling moves JSON: %w", err)
+	}
+
+	return moves, nil
 }
 
 // FetchOperator fetches an operator from the database using OperatorName and OperatorGameName

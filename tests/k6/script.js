@@ -4,9 +4,12 @@ import http from 'k6/http';
 import { check, fail } from 'k6';
 export {options};     // This will be the options from the config. They will be used to run the test.
 import { Trend } from 'k6/metrics';
+import { getMsgLeaveQueue, getMsgQueueRequest } from './helpers.js';
 
 export let gamelaunchResponseTime = new Trend('http_gamelaunch_response_time', true);
 export let connectedMsgTime = new Trend('ws_connected_message_time', true);
+export let queueConfirmationResponseTime = new Trend('ws_queue_confirmation_response_message_time', true);
+export let pairedResponseTime = new Trend('ws_paired_response_message_time', true);
 export let connectTime = new Trend('ws_connect_time', true);
 
 /*
@@ -43,6 +46,7 @@ function runGamelaunch() {
 function connectWebSocket(wsConUrl) {
   console.log('Connecting to websocket');
   const start = Date.now();
+  let startQueueRequest;
 
   const res = ws.connect(wsConUrl, null, function (socket) {
     socket.on('open', () => {
@@ -50,7 +54,7 @@ function connectWebSocket(wsConUrl) {
       connectTime.add(elapsed)
       console.log('WebSocket connection opened');
     });
-
+    
     socket.on('message', (msg) => {
       console.log(`Received: ${msg}`);
       const data = JSON.parse(msg);
@@ -59,9 +63,33 @@ function connectWebSocket(wsConUrl) {
         const elapsed = Date.now() - start;
         console.log(`Connected message received after ${elapsed} ms`);
         connectedMsgTime.add(elapsed); // record metric
-        // TODO: Send the queue message, call method for that.
-        // TODO: Reset start?
-        //  
+        socket.send(
+          getMsgQueueRequest()
+        ) 
+        startQueueRequest = Date.now()
+        // TODO: fazer um check para termos recebido a connection.
+        //check(res, {
+        //  'ws connection status is 101': (r) => r && r.status === 101,
+        //});
+      }
+      
+      if (data.command === 'queue_confirmation' && data.value) {
+        const elapsed = Date.now() - startQueueRequest;
+        console.log(`Queue Confirmation message received after ${elapsed} ms`);
+        queueConfirmationResponseTime.add(elapsed); // record metric
+         // TODO: fazer um check para termos recebido a queue confirmation.
+        //check(res, {
+        //  'ws connection status is 101': (r) => r && r.status === 101,
+        //});
+      }
+
+      if(data.command === "paired" && data.value)
+      {
+        const elapsed = Date.now() - startQueueRequest;
+        const { value } = data;
+        console.log({value});
+
+        pairedResponseTime.add(elapsed);
       }
     });
 
@@ -71,6 +99,9 @@ function connectWebSocket(wsConUrl) {
 
     socket.setTimeout(() => {
       console.log('Closing socket after 3s');
+      socket.send(
+        getMsgLeaveQueue()
+      )
       socket.close();
     }, 3000);
   });
@@ -81,9 +112,17 @@ function connectWebSocket(wsConUrl) {
 }
 
 export default function () {
+  // Player 1
   const gameUrl = runGamelaunch();
   console.log("Game launch finished")
   const wsUrl = toWsUrl(gameUrl);
   console.log("Url transformed")
   connectWebSocket(wsUrl);
+  
+  // Player2
+  const gameUrl_2 = runGamelaunch();
+  console.log("Game launch finished")
+  const wsUrl_2 = toWsUrl(gameUrl_2);
+  console.log("Url transformed")
+  connectWebSocket(wsUrl_2);
 }

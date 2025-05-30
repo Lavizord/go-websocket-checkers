@@ -93,6 +93,33 @@ func gameLaunchHandler(w http.ResponseWriter, r *http.Request) {
 	module.HandleGameLaunch(w, r, req, *operator, redisClient, postgresClient)
 }
 
+func gameMovesHandler(w http.ResponseWriter, r *http.Request) {
+	var req models.GameMovesRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.GameID == "" {
+		respondWithJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"message": "Invalid or missing game_id",
+		})
+		return
+	}
+
+	log.Printf("Fetching moves for gameID: [%s]", req.GameID)
+	moves, err := postgresClient.FetchGameMoves(req.GameID)
+	if err != nil {
+		respondWithJSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"success": false,
+			"message": "Failed to fetch moves :" + err.Error(),
+		})
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"moves":   moves,
+	})
+}
+
 // Utility function to respond with JSON
 func respondWithJSON(w http.ResponseWriter, status int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -102,6 +129,7 @@ func respondWithJSON(w http.ResponseWriter, status int, payload interface{}) {
 
 func registerRoutes(r *mux.Router) {
 	r.HandleFunc("/api/gamelaunch", gameLaunchHandler).Methods("POST")
+	r.HandleFunc("/api/game/moves", gameMovesHandler).Methods("POST")
 
 	healthHandler := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -114,6 +142,9 @@ func main() {
 	defer func() {
 		if redisClient != nil {
 			redisClient.CloseRedisClient()
+		}
+		if postgresClient != nil {
+			postgresClient.Close()
 		}
 	}()
 
